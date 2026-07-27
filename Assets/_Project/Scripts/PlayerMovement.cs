@@ -8,6 +8,9 @@ public class PlayerMovement : MonoBehaviour
     [SerializeField] private float moveSpeed = 5f;
     [SerializeField] private float rotationSpeed = 12f;
 
+    [Header("Input")]
+    [SerializeField] private VirtualJoystick joystick;
+
     private Rigidbody playerRigidbody;
     private Vector2 moveInput;
 
@@ -18,19 +21,33 @@ public class PlayerMovement : MonoBehaviour
 
     private void Update()
     {
-        moveInput = ReadKeyboardInput();
+        Vector2 keyboardInput = ReadKeyboardInput();
+
+        Vector2 joystickInput =
+            joystick != null
+                ? joystick.Direction
+                : Vector2.zero;
+
+        // 조이스틱을 움직이고 있으면 조이스틱 입력을 우선한다.
+        // 조이스틱이 멈춰 있으면 키보드 입력을 사용한다.
+        if (joystickInput.sqrMagnitude > 0.001f)
+        {
+            moveInput = joystickInput;
+        }
+        else
+        {
+            moveInput = keyboardInput;
+        }
     }
 
     private void FixedUpdate()
     {
-        // Vector2 입력을 Unity의 3D 방향으로 변환한다.
         Vector3 moveDirection = new Vector3(
             moveInput.x,
             0f,
             moveInput.y
         );
 
-        // 기존의 위아래 속도는 유지하면서 X, Z 방향으로 이동한다.
         Vector3 currentVelocity = playerRigidbody.linearVelocity;
 
         playerRigidbody.linearVelocity = new Vector3(
@@ -39,7 +56,6 @@ public class PlayerMovement : MonoBehaviour
             moveDirection.z * moveSpeed
         );
 
-        // 움직이고 있을 때만 이동 방향을 바라본다.
         if (moveDirection.sqrMagnitude > 0.001f)
         {
             Quaternion targetRotation =
@@ -66,7 +82,6 @@ public class PlayerMovement : MonoBehaviour
         float horizontal = 0f;
         float vertical = 0f;
 
-        // 왼쪽과 오른쪽
         if (Keyboard.current.aKey.isPressed ||
             Keyboard.current.leftArrowKey.isPressed)
         {
@@ -79,7 +94,6 @@ public class PlayerMovement : MonoBehaviour
             horizontal += 1f;
         }
 
-        // 앞과 뒤
         if (Keyboard.current.wKey.isPressed ||
             Keyboard.current.upArrowKey.isPressed)
         {
@@ -94,7 +108,6 @@ public class PlayerMovement : MonoBehaviour
 
         Vector2 input = new Vector2(horizontal, vertical);
 
-        // 대각선 이동이 더 빨라지는 것을 방지한다.
         return Vector2.ClampMagnitude(input, 1f);
     }
 }
