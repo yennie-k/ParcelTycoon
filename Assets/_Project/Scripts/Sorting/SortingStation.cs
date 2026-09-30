@@ -6,6 +6,10 @@ public class SortingStation : MonoBehaviour
 {
     [Header("Sorting Settings")]
     [SerializeField] private float sortingTime = 2f;
+    [SerializeField] private int sortingLevel = 1;
+    [SerializeField] private int maxSortingLevel = 4;
+    [SerializeField] private float sortingTimeDecrease = 0.4f;
+    [SerializeField] private float minimumSortingTime = 0.8f;
 
     [Header("Input Settings")]
     [SerializeField] private int maxInputCount = 5;
@@ -37,6 +41,40 @@ public class SortingStation : MonoBehaviour
 
     public bool CanAcceptInput =>
         inputBoxes.Count < maxInputCount;
+
+    public int SortingLevel => sortingLevel;
+
+    public int MaxSortingLevel => maxSortingLevel;
+
+    public float SortingTime => sortingTime;
+
+    public bool CanUpgradeSorting =>
+        sortingLevel < maxSortingLevel;
+
+    public bool UpgradeSortingSpeed()
+    {
+        if (!CanUpgradeSorting)
+        {
+            return false;
+        }
+
+        sortingLevel++;
+
+        sortingTime -= sortingTimeDecrease;
+
+        sortingTime =
+            Mathf.Max(
+                sortingTime,
+                minimumSortingTime
+            );
+
+        Debug.Log(
+            $"분류 속도 업그레이드! " +
+            $"Lv.{sortingLevel} / {sortingTime:F1}초"
+        );
+
+        return true;
+    }
 
     private void Update()
     {

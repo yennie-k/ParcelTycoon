@@ -1,4 +1,4 @@
-using TMPro;
+﻿using TMPro;
 using UnityEngine;
 
 public class MoneyManager : MonoBehaviour
@@ -63,7 +63,6 @@ public class MoneyManager : MonoBehaviour
             return;
         }
 
-        moneyText.text =
-            $"Money: {currentMoney:N0}";
+        moneyText.text = $"₩ {currentMoney:N0}";
     }
 }

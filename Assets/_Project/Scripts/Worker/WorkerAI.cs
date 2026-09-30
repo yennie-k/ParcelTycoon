@@ -28,6 +28,17 @@ public class WorkerAI : MonoBehaviour
     private ParcelBox targetBox;
     private ParcelBox carriedBox;
 
+    public float MoveSpeed => moveSpeed;
+
+    public void IncreaseMoveSpeed(float amount)
+    {
+        moveSpeed += amount;
+
+        Debug.Log(
+            $"출고 직원 이동속도: {moveSpeed:F2}"
+        );
+    }
+
     private void OnEnable()
     {
         currentState = WorkerState.SearchingBox;

@@ -8,6 +8,10 @@ public class PlayerCarry : MonoBehaviour
     [SerializeField] private int maxCarryCount = 3;
     [SerializeField] private float stackSpacing = 1.05f;
 
+    [Header("Carry Upgrade")]
+    [SerializeField] private int carryLevel = 1;
+    [SerializeField] private int maxCarryLevel = 3;
+
     [Header("Pickup Settings")]
     [SerializeField] private float pickupInterval = 0.3f;
 
@@ -23,6 +27,33 @@ public class PlayerCarry : MonoBehaviour
 
     public bool IsFull =>
         carriedBoxes.Count >= maxCarryCount;
+
+    public int CarryLevel => carryLevel;
+
+    public int MaxCarryLevel => maxCarryLevel;
+
+    public int MaxCarryCount => maxCarryCount;
+
+    public bool CanUpgradeCarry =>
+        carryLevel < maxCarryLevel;
+
+    public bool UpgradeCarryCapacity()
+    {
+        if (!CanUpgradeCarry)
+        {
+            return false;
+        }
+
+        carryLevel++;
+        maxCarryCount++;
+
+        Debug.Log(
+            $"운반량 업그레이드! " +
+            $"Lv.{carryLevel} / 최대 {maxCarryCount}개"
+        );
+
+        return true;
+    }
 
     // Trigger 안에 머무는 동안 계속 호출된다.
     private void OnTriggerStay(Collider other)
