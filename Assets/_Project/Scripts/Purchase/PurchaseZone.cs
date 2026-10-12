@@ -14,8 +14,40 @@ public class PurchaseZone : MonoBehaviour
     [SerializeField] private GameObject targetObject;
     [SerializeField] private TMP_Text priceText;
 
+    private bool purchased;
+    private bool paymentRunning;
     private int paidAmount;
     private Coroutine paymentCoroutine;
+    public bool HasSaveReferences => moneyManager != null && targetObject != null;
+
+    public PurchaseSaveData CaptureState()
+    {
+        bool complete = purchased || (targetObject != null && targetObject.activeSelf);
+        return new PurchaseSaveData { purchased = complete, paidAmount = complete ? 0 : paidAmount };
+    }
+
+    public bool IsValidSave(PurchaseSaveData data)
+    {
+        return data != null && data.paidAmount >= 0 && data.paidAmount <= purchaseCost &&
+            (!data.purchased || data.paidAmount == 0);
+    }
+
+    public void RestoreState(PurchaseSaveData data)
+    {
+        OnDisable();
+        purchased = data.purchased || data.paidAmount == purchaseCost;
+        paidAmount = purchased ? purchaseCost : data.paidAmount;
+        targetObject.SetActive(purchased);
+        gameObject.SetActive(!purchased);
+        UpdatePriceText();
+    }
+
+    private void OnDisable()
+    {
+        if (paymentCoroutine != null) StopCoroutine(paymentCoroutine);
+        paymentCoroutine = null;
+        paymentRunning = false;
+    }
 
     private void Start()
     {
@@ -27,18 +59,19 @@ public class PurchaseZone : MonoBehaviour
         PlayerMovement player =
             other.GetComponent<PlayerMovement>();
 
-        if (player == null)
+        if (player == null || !SaveManager.GameplayReady)
         {
             return;
         }
 
-        if (paymentCoroutine != null)
+        if (purchased || targetObject == null || targetObject.activeSelf || moneyManager == null || paymentRunning)
         {
             return;
         }
 
-        paymentCoroutine =
-            StartCoroutine(PayForPurchase());
+        paymentRunning = true;
+        Coroutine started = StartCoroutine(PayForPurchase());
+        paymentCoroutine = paymentRunning ? started : null;
     }
 
     private void OnTriggerExit(Collider other)
@@ -58,6 +91,7 @@ public class PurchaseZone : MonoBehaviour
 
         StopCoroutine(paymentCoroutine);
         paymentCoroutine = null;
+        paymentRunning = false;
     }
 
     private IEnumerator PayForPurchase()
@@ -79,6 +113,7 @@ public class PurchaseZone : MonoBehaviour
                 );
 
             paidAmount += spentAmount;
+            if (spentAmount > 0) SaveManager.Instance?.RequestSave();
 
             UpdatePriceText();
 
@@ -110,6 +145,7 @@ public class PurchaseZone : MonoBehaviour
 
     private void CompletePurchase()
     {
+        purchased = true;
         if (targetObject != null)
         {
             targetObject.SetActive(true);
@@ -118,5 +154,6 @@ public class PurchaseZone : MonoBehaviour
         paymentCoroutine = null;
 
         gameObject.SetActive(false);
+        SaveManager.Instance?.SaveNow();
     }
 }

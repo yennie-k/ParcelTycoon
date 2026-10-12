@@ -785,6 +785,7 @@ GameObject:
   - component: {fileID: 237093068}
   - component: {fileID: 237093067}
   - component: {fileID: 237093069}
+  - component: {fileID: 237093070}
   m_Layer: 0
   m_Name: GameManager
   m_TagString: Untagged
@@ -842,6 +843,26 @@ MonoBehaviour:
   sortingSpeedUpgradeZone: {fileID: 153720796}
   carryCapacityUpgradeZone: {fileID: 2007357964}
   workerSpeedUpgradeZone: {fileID: 1170691097}
+--- !u!114 &237093070
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 237093066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 864be97290c34a9485e6b483240df93b, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::SaveManager
+  moneyManager: {fileID: 237093067}
+  secondInbound: {fileID: 620742498}
+  warehouseExpansion: {fileID: 473666158}
+  inputWorker: {fileID: 1847142255}
+  deliveryWorker: {fileID: 1395281694}
+  progressionManager: {fileID: 237093069}
+  goalUI: {fileID: 46161710}
+  saveInterval: 0.5
 --- !u!1 &285598075
 GameObject:
   m_ObjectHideFlags: 0
@@ -1296,7 +1317,7 @@ MonoBehaviour:
   paymentPerTick: 50
   paymentInterval: 0.1
   moneyManager: {fileID: 237093067}
-  targetObject: {fileID: 1487559174}
+  targetObject: {fileID: 1224684562}
   priceText: {fileID: 25152521}
 --- !u!65 &473666159
 BoxCollider:

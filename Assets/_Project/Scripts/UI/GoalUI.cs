@@ -17,11 +17,12 @@ public class GoalUI : MonoBehaviour
 
     private void Update()
     {
-        UpdateGoal();
+        RefreshGoal();
     }
 
-    private void UpdateGoal()
+    public void RefreshGoal()
     {
+        if (!SaveManager.GameplayReady) return;
         if (goalText == null)
         {
             return;

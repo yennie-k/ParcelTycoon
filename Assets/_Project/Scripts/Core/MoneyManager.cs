@@ -1,4 +1,5 @@
-﻿using TMPro;
+using System;
+using TMPro;
 using UnityEngine;
 
 public class MoneyManager : MonoBehaviour
@@ -10,13 +11,26 @@ public class MoneyManager : MonoBehaviour
     [SerializeField] private TMP_Text moneyText;
 
     private int currentMoney;
+    private bool initialized;
+    public event Action MoneyChanged;
 
     public int CurrentMoney => currentMoney;
 
-    private void Awake()
+    private void Awake() { Initialize(); }
+
+    public void Initialize()
     {
+        if (initialized) return;
+        initialized = true;
         currentMoney = startingMoney;
 
+        UpdateMoneyUI();
+    }
+
+    public void RestoreMoney(int amount)
+    {
+        Initialize();
+        currentMoney = Mathf.Max(0, amount);
         UpdateMoneyUI();
     }
 
@@ -28,6 +42,7 @@ public class MoneyManager : MonoBehaviour
         }
 
         currentMoney += amount;
+        MoneyChanged?.Invoke();
 
         UpdateMoneyUI();
     }
@@ -50,6 +65,7 @@ public class MoneyManager : MonoBehaviour
         );
 
         currentMoney -= spentAmount;
+        MoneyChanged?.Invoke();
 
         UpdateMoneyUI();
 

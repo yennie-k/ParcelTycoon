@@ -19,16 +19,17 @@ public class ProgressionManager : MonoBehaviour
 
     private void Start()
     {
-        UpdateProgression();
+        RefreshProgression();
     }
 
     private void Update()
     {
-        UpdateProgression();
+        RefreshProgression();
     }
 
-    private void UpdateProgression()
+    public void RefreshProgression()
     {
+        if (!SaveManager.GameplayReady) return;
         bool secondInboundUnlocked =
             secondInbound != null &&
             secondInbound.activeSelf;
