@@ -18,9 +18,9 @@ public class SaveData
 
     public void Migrate()
     {
-        if (schemaVersion == 1 || schemaVersion == CurrentVersion)
+        if (schemaVersion == 1)
         {
-            // Missing upgrade records mean Lv.1, not zero. Preserve every existing field.
+            // Only version 1 may omit upgrades. Missing version-2 records are corruption.
             if (carryUpgrade == null) carryUpgrade = new UpgradeSaveData();
             if (sortingUpgrade == null) sortingUpgrade = new UpgradeSaveData();
             if (workerSpeedUpgrade == null) workerSpeedUpgrade = new UpgradeSaveData();
