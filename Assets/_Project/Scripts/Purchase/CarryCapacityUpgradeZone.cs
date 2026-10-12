@@ -20,6 +20,46 @@ public class CarryCapacityUpgradeZone : MonoBehaviour
     private int paidAmount;
     private Coroutine paymentCoroutine;
 
+    private bool paymentRunning;
+    public bool HasSaveReferences => moneyManager != null && playerCarry != null;
+
+    public UpgradeSaveData CaptureState()
+    {
+        return new UpgradeSaveData { level = playerCarry.CarryLevel, paidAmount = playerCarry.CanUpgradeCarry ? paidAmount : 0 };
+    }
+
+    public bool IsValidSave(UpgradeSaveData data)
+    {
+        if (data == null || data.level < 1 || data.level > playerCarry.MaxCarryLevel || data.paidAmount < 0) return false;
+        if (data.level == playerCarry.MaxCarryLevel) return data.paidAmount == 0;
+        int cost = baseCost * (int)Mathf.Pow(costMultiplier, data.level - 1);
+        return data.paidAmount <= cost;
+    }
+
+    public void RestoreState(UpgradeSaveData data)
+    {
+        StopPayment();
+        playerCarry.RestoreCarryLevel(data.level);
+        paidAmount = data.paidAmount;
+        // Normalize a fully paid tier without spending or firing gameplay completion events.
+        if (playerCarry.CanUpgradeCarry && paidAmount == CurrentCost)
+        {
+            playerCarry.RestoreCarryLevel(data.level + 1);
+            paidAmount = 0;
+        }
+        if (!playerCarry.CanUpgradeCarry) paidAmount = 0;
+        UpdateText();
+    }
+
+    private void StopPayment()
+    {
+        if (paymentCoroutine != null) StopCoroutine(paymentCoroutine);
+        paymentCoroutine = null;
+        paymentRunning = false;
+    }
+
+    private void OnDisable() { StopPayment(); }
+
     private int CurrentCost
     {
         get
@@ -45,7 +85,7 @@ public class CarryCapacityUpgradeZone : MonoBehaviour
         PlayerMovement player =
             other.GetComponent<PlayerMovement>();
 
-        if (player == null)
+        if (player == null || !SaveManager.GameplayReady)
         {
             return;
         }
@@ -56,13 +96,14 @@ public class CarryCapacityUpgradeZone : MonoBehaviour
             return;
         }
 
-        if (paymentCoroutine != null)
+        if (paymentRunning || moneyManager == null)
         {
             return;
         }
 
-        paymentCoroutine =
-            StartCoroutine(PayForUpgrade());
+        paymentRunning = true;
+        Coroutine started = StartCoroutine(PayForUpgrade());
+        paymentCoroutine = paymentRunning ? started : null;
     }
 
     private void OnTriggerExit(Collider other)
@@ -75,11 +116,7 @@ public class CarryCapacityUpgradeZone : MonoBehaviour
             return;
         }
 
-        if (paymentCoroutine != null)
-        {
-            StopCoroutine(paymentCoroutine);
-            paymentCoroutine = null;
-        }
+        StopPayment();
     }
 
     private IEnumerator PayForUpgrade()
@@ -101,6 +138,7 @@ public class CarryCapacityUpgradeZone : MonoBehaviour
                 );
 
             paidAmount += spent;
+            if (spent > 0) SaveManager.Instance?.RequestSave();
 
             UpdateText();
 
@@ -116,6 +154,7 @@ public class CarryCapacityUpgradeZone : MonoBehaviour
         }
 
         paymentCoroutine = null;
+        paymentRunning = false;
     }
 
     private void CompleteUpgrade()
@@ -125,13 +164,15 @@ public class CarryCapacityUpgradeZone : MonoBehaviour
 
         paidAmount = 0;
         paymentCoroutine = null;
+        paymentRunning = false;
 
         UpdateText();
+        SaveManager.Instance?.SaveNow();
 
         if (!upgraded)
         {
             Debug.Log(
-                "¿î¹İ·®ÀÌ ÀÌ¹Ì ÃÖ´ë ·¹º§ÀÔ´Ï´Ù."
+                "ìš´ë°˜ëŸ‰ì´ ì´ë¯¸ ìµœëŒ€ ë ˆë²¨ì…ë‹ˆë‹¤."
             );
         }
     }

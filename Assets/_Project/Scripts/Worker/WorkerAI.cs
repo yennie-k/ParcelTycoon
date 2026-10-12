@@ -30,6 +30,20 @@ public class WorkerAI : MonoBehaviour
 
     public float MoveSpeed => moveSpeed;
 
+    private bool speedBaselineCaptured;
+    private float baseMoveSpeed;
+
+    // Independent of Awake/OnEnable so inactive workers can be restored too.
+    public void RestoreMoveSpeedBonus(float bonus)
+    {
+        if (!speedBaselineCaptured)
+        {
+            baseMoveSpeed = moveSpeed;
+            speedBaselineCaptured = true;
+        }
+        moveSpeed = baseMoveSpeed + bonus;
+    }
+
     public void IncreaseMoveSpeed(float amount)
     {
         moveSpeed += amount;

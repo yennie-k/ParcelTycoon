@@ -51,6 +51,21 @@ public class SortingStation : MonoBehaviour
     public bool CanUpgradeSorting =>
         sortingLevel < maxSortingLevel;
 
+    private bool sortingBaselineCaptured;
+    private float baseSortingTime;
+
+    public void RestoreSortingLevel(int level)
+    {
+        if (!sortingBaselineCaptured)
+        {
+            baseSortingTime = sortingTime + (sortingLevel - 1) * sortingTimeDecrease;
+            sortingBaselineCaptured = true;
+        }
+        sortingLevel = Mathf.Clamp(level, 1, maxSortingLevel);
+        sortingTime = Mathf.Max(minimumSortingTime,
+            baseSortingTime - (sortingLevel - 1) * sortingTimeDecrease);
+    }
+
     public bool UpgradeSortingSpeed()
     {
         if (!CanUpgradeSorting)

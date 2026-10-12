@@ -862,6 +862,9 @@ MonoBehaviour:
   deliveryWorker: {fileID: 1395281694}
   progressionManager: {fileID: 237093069}
   goalUI: {fileID: 46161710}
+  carryUpgrade: {fileID: 2007357966}
+  sortingUpgrade: {fileID: 153720798}
+  workerSpeedUpgrade: {fileID: 1170691099}
   saveInterval: 0.5
 --- !u!1 &285598075
 GameObject:

@@ -37,6 +37,20 @@ public class PlayerCarry : MonoBehaviour
     public bool CanUpgradeCarry =>
         carryLevel < maxCarryLevel;
 
+    private bool carryBaselineCaptured;
+    private int baseCarryCount;
+
+    public void RestoreCarryLevel(int level)
+    {
+        if (!carryBaselineCaptured)
+        {
+            baseCarryCount = maxCarryCount - (carryLevel - 1);
+            carryBaselineCaptured = true;
+        }
+        carryLevel = Mathf.Clamp(level, 1, maxCarryLevel);
+        maxCarryCount = baseCarryCount + (carryLevel - 1);
+    }
+
     public bool UpgradeCarryCapacity()
     {
         if (!CanUpgradeCarry)

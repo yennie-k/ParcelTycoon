@@ -37,6 +37,54 @@ public class WorkerSpeedUpgradeZone : MonoBehaviour
     public bool CanUpgrade =>
         workerSpeedLevel < maxWorkerSpeedLevel;
 
+    private bool paymentRunning;
+    public bool HasSaveReferences => moneyManager != null && inputWorker != null && deliveryWorker != null;
+
+    public UpgradeSaveData CaptureState()
+    {
+        return new UpgradeSaveData { level = workerSpeedLevel, paidAmount = CanUpgrade ? paidAmount : 0 };
+    }
+
+    public bool IsValidSave(UpgradeSaveData data)
+    {
+        if (data == null || data.level < 1 || data.level > maxWorkerSpeedLevel || data.paidAmount < 0) return false;
+        if (data.level == maxWorkerSpeedLevel) return data.paidAmount == 0;
+        int cost = baseCost * (int)Mathf.Pow(costMultiplier, data.level - 1);
+        return data.paidAmount <= cost;
+    }
+
+    public void RestoreState(UpgradeSaveData data)
+    {
+        StopPayment();
+        RestoreWorkerLevel(data.level);
+        paidAmount = data.paidAmount;
+        // Normalize a fully paid tier without spending or firing gameplay completion events.
+        if (CanUpgrade && paidAmount == CurrentCost)
+        {
+            RestoreWorkerLevel(data.level + 1);
+            paidAmount = 0;
+        }
+        if (!CanUpgrade) paidAmount = 0;
+        UpdateText();
+    }
+
+    private void StopPayment()
+    {
+        if (paymentCoroutine != null) StopCoroutine(paymentCoroutine);
+        paymentCoroutine = null;
+        paymentRunning = false;
+    }
+
+    private void OnDisable() { StopPayment(); }
+
+    public void RestoreWorkerLevel(int level)
+    {
+        workerSpeedLevel = Mathf.Clamp(level, 1, maxWorkerSpeedLevel);
+        float bonus = (workerSpeedLevel - 1) * speedIncreasePerLevel;
+        if (deliveryWorker != null) deliveryWorker.RestoreMoveSpeedBonus(bonus);
+        if (inputWorker != null) inputWorker.RestoreMoveSpeedBonus(bonus);
+    }
+
     private int CurrentCost
     {
         get
@@ -62,7 +110,7 @@ public class WorkerSpeedUpgradeZone : MonoBehaviour
         PlayerMovement player =
             other.GetComponent<PlayerMovement>();
 
-        if (player == null)
+        if (player == null || !SaveManager.GameplayReady)
         {
             return;
         }
@@ -72,15 +120,14 @@ public class WorkerSpeedUpgradeZone : MonoBehaviour
             return;
         }
 
-        if (paymentCoroutine != null)
+        if (paymentRunning || moneyManager == null)
         {
             return;
         }
 
-        paymentCoroutine =
-            StartCoroutine(
-                PayForUpgrade()
-            );
+        paymentRunning = true;
+        Coroutine started = StartCoroutine(PayForUpgrade());
+        paymentCoroutine = paymentRunning ? started : null;
     }
 
     private void OnTriggerExit(Collider other)
@@ -93,14 +140,7 @@ public class WorkerSpeedUpgradeZone : MonoBehaviour
             return;
         }
 
-        if (paymentCoroutine != null)
-        {
-            StopCoroutine(
-                paymentCoroutine
-            );
-
-            paymentCoroutine = null;
-        }
+        StopPayment();
     }
 
     private IEnumerator PayForUpgrade()
@@ -122,6 +162,7 @@ public class WorkerSpeedUpgradeZone : MonoBehaviour
                 );
 
             paidAmount += spent;
+            if (spent > 0) SaveManager.Instance?.RequestSave();
 
             UpdateText();
 
@@ -137,6 +178,7 @@ public class WorkerSpeedUpgradeZone : MonoBehaviour
         }
 
         paymentCoroutine = null;
+        paymentRunning = false;
     }
 
     private void CompleteUpgrade()
@@ -144,34 +186,23 @@ public class WorkerSpeedUpgradeZone : MonoBehaviour
         if (!CanUpgrade)
         {
             paymentCoroutine = null;
+        paymentRunning = false;
             UpdateText();
             return;
         }
 
-        workerSpeedLevel++;
-
-        if (deliveryWorker != null)
-        {
-            deliveryWorker.IncreaseMoveSpeed(
-                speedIncreasePerLevel
-            );
-        }
-
-        if (inputWorker != null)
-        {
-            inputWorker.IncreaseMoveSpeed(
-                speedIncreasePerLevel
-            );
-        }
+        RestoreWorkerLevel(workerSpeedLevel + 1);
 
         Debug.Log(
-            $"Á÷¿ø ¼Óµµ ¾÷±×·¹ÀÌµå! Lv.{workerSpeedLevel}"
+            $"ì§ì› ì†ë„ ì—…ê·¸ë ˆì´ë“œ! Lv.{workerSpeedLevel}"
         );
 
         paidAmount = 0;
         paymentCoroutine = null;
+        paymentRunning = false;
 
         UpdateText();
+        SaveManager.Instance?.SaveNow();
     }
 
     private void UpdateText()
