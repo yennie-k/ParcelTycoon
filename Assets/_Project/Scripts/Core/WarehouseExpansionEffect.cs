@@ -12,6 +12,11 @@ public class WarehouseExpansionEffect : MonoBehaviour
     [SerializeField] private int baseCapacity = 5;
     [SerializeField] private int expandedCapacity = 10;
 
+    [Header("Capacity Label Colors")]
+    [SerializeField] private Color inputColor = new Color(0.27f, 0.88f, 0.81f, 1f);
+    [SerializeField] private Color outputColor = new Color(1f, 0.83f, 0.42f, 1f);
+    [SerializeField] private Color fullColor = new Color(1f, 0.47f, 0.43f, 1f);
+
     private int displayedInputCount = -1;
     private int displayedOutputCount = -1;
     private int displayedInputCapacity = -1;
@@ -35,15 +40,24 @@ public class WarehouseExpansionEffect : MonoBehaviour
         {
             displayedInputCount = sortingStation.InputCount;
             displayedInputCapacity = sortingStation.MaxInputCount;
-            inputCapacityText.text = $"INPUT {displayedInputCount}/{displayedInputCapacity}";
+            UpdateCapacityLabel(inputCapacityText, "INPUT", displayedInputCount, displayedInputCapacity, inputColor);
         }
         if (outputCapacityText != null && (displayedOutputCount != sortingStation.OutputCount ||
             displayedOutputCapacity != sortingStation.MaxOutputCount))
         {
             displayedOutputCount = sortingStation.OutputCount;
             displayedOutputCapacity = sortingStation.MaxOutputCount;
-            outputCapacityText.text = $"OUTPUT {displayedOutputCount}/{displayedOutputCapacity}";
+            UpdateCapacityLabel(outputCapacityText, "OUTPUT", displayedOutputCount, displayedOutputCapacity, outputColor);
         }
+    }
+
+    private void UpdateCapacityLabel(TMP_Text label, string title, int count, int capacity, Color normalColor)
+    {
+        label.color = count >= capacity ? fullColor : normalColor;
+        // TMP creates a local material instance; the shared font asset is not modified.
+        label.outlineColor = new Color(0.025f, 0.04f, 0.06f, 1f);
+        label.outlineWidth = 0.18f;
+        label.text = $"<size=65%>{title}</size>\n<b>{count}</b> <size=70%><color=#DDE7F1>/ {capacity}</color></size>";
     }
 
     private bool ApplyCapacity()
