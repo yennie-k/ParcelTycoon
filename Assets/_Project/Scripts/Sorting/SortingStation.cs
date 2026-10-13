@@ -19,6 +19,11 @@ public class SortingStation : MonoBehaviour
     [SerializeField] private int maxOutputCount = 5;
     [SerializeField] private float outputStackSpacing = 1.05f;
 
+    [Header("Stack Layout")]
+    [SerializeField] private int boxesPerColumn = 5;
+    [SerializeField] private Vector3 inputColumnOffset = new Vector3(0f, 0f, 1.5f);
+    [SerializeField] private Vector3 outputColumnOffset = new Vector3(0f, 0f, 1.5f);
+
     [Header("References")]
     [SerializeField] private Transform inputPoint;
     [SerializeField] private Transform sortingPoint;
@@ -38,6 +43,26 @@ public class SortingStation : MonoBehaviour
     private Coroutine sortingCoroutine;
 
     public bool IsBusy => currentBox != null;
+    public int InputCount => inputBoxes.Count;
+    public int OutputCount => outputBoxes.Count;
+    public int MaxInputCount => maxInputCount;
+    public int MaxOutputCount => maxOutputCount;
+
+    // Absolute limits: repeated load/enable never adds capacity again.
+    public void SetStorageCapacity(int inputCapacity, int outputCapacity)
+    {
+        maxInputCount = Mathf.Max(1, inputCapacity);
+        maxOutputCount = Mathf.Max(1, outputCapacity);
+        RefreshInputStack();
+        RefreshOutputStack();
+    }
+
+    private Vector3 StackPosition(Transform point, int index, float spacing, Vector3 columnOffset)
+    {
+        int columnHeight = Mathf.Max(1, boxesPerColumn);
+        return point.position + columnOffset * (index / columnHeight) +
+            Vector3.up * ((index % columnHeight) * spacing);
+    }
 
     public bool CanAcceptInput =>
         inputBoxes.Count < maxInputCount;
@@ -142,9 +167,7 @@ public class SortingStation : MonoBehaviour
         int stackIndex = inputBoxes.Count;
 
         Vector3 position =
-            inputPoint.position +
-            Vector3.up *
-            (stackIndex * inputStackSpacing);
+            StackPosition(inputPoint, stackIndex, inputStackSpacing, inputColumnOffset);
 
         box.PlaceInInput(
             inputPoint,
@@ -196,9 +219,7 @@ public class SortingStation : MonoBehaviour
             outputBoxes.Count;
 
         Vector3 position =
-            outputPoint.position +
-            Vector3.up *
-            (stackIndex * outputStackSpacing);
+            StackPosition(outputPoint, stackIndex, outputStackSpacing, outputColumnOffset);
 
         currentBox.CompleteSorting(
             outputPoint,
@@ -228,9 +249,7 @@ public class SortingStation : MonoBehaviour
              i++)
         {
             Vector3 position =
-                inputPoint.position +
-                Vector3.up *
-                (i * inputStackSpacing);
+                StackPosition(inputPoint, i, inputStackSpacing, inputColumnOffset);
 
             inputBoxes[i].transform.position =
                 position;
@@ -251,9 +270,7 @@ public class SortingStation : MonoBehaviour
              i++)
         {
             Vector3 position =
-                outputPoint.position +
-                Vector3.up *
-                (i * outputStackSpacing);
+                StackPosition(outputPoint, i, outputStackSpacing, outputColumnOffset);
 
             outputBoxes[i].transform.position =
                 position;
