@@ -1,65 +1,84 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class GoalUI : MonoBehaviour
 {
-    [Header("References")]
     [SerializeField] private TMP_Text goalText;
+    [SerializeField] private ProgressionManager progressionManager;
 
-    [SerializeField]
-    private GameObject secondInbound;
+    private ProgressionManager.GoalId? checkedGoal;
+    private TMP_FontAsset checkedFont;
+    private bool supportsKorean;
 
-    [SerializeField]
-    private GameObject deliveryWorker;
+    private Texture2D roundedTexture;
+    private Sprite roundedSprite;
+    private Image panelImage;
 
-    [SerializeField]
-    private GameObject inputWorker;
-
-    private void Update()
+    private void OnEnable()
     {
-        RefreshGoal();
+        checkedGoal = null;
+        SetupRoundedPanel();
     }
+
+    private void SetupRoundedPanel()
+    {
+        if (goalText == null || goalText.transform.parent == null) return;
+        panelImage = goalText.transform.parent.GetComponent<Image>();
+        if (panelImage == null || panelImage.sprite != null) return;
+        // Small local UI texture; no downloaded image or shared asset modification.
+        const int size = 64;
+        const float radius = 12f;
+        roundedTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        roundedTexture.name = "GoalPanel Rounded Background";
+        roundedTexture.wrapMode = TextureWrapMode.Clamp;
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+            {
+                float dx = Mathf.Max(radius - (x + 0.5f), (x + 0.5f) - (size - radius));
+                float dy = Mathf.Max(radius - (y + 0.5f), (y + 0.5f) - (size - radius));
+                float distance = Mathf.Sqrt(Mathf.Max(0f, dx) * Mathf.Max(0f, dx) + Mathf.Max(0f, dy) * Mathf.Max(0f, dy));
+                roundedTexture.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(radius - distance + 0.5f)));
+            }
+        roundedTexture.Apply(false, true);
+        roundedSprite = Sprite.Create(roundedTexture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f),
+            100f, 0, SpriteMeshType.FullRect, new Vector4(radius, radius, radius, radius));
+        panelImage.sprite = roundedSprite;
+        panelImage.type = Image.Type.Sliced;
+    }
+
+    private void OnDestroy()
+    {
+        if (panelImage != null && panelImage.sprite == roundedSprite) panelImage.sprite = null;
+        if (roundedSprite != null) Destroy(roundedSprite);
+        if (roundedTexture != null) Destroy(roundedTexture);
+    }
+
+    private void Update() { RefreshGoal(); }
 
     public void RefreshGoal()
     {
-        if (!SaveManager.GameplayReady) return;
-        if (goalText == null)
+        if (!SaveManager.GameplayReady || goalText == null || progressionManager == null) return;
+        ProgressionManager.GoalId goal = progressionManager.CurrentGoal;
+        string message = progressionManager.GetGoalText(goal);
+        // Preserve the existing font. Avoid missing-glyph warnings until a Korean font
+        // (or fallback) is supplied; dynamic fonts may add supported glyphs here.
+        if (checkedGoal != goal || checkedFont != goalText.font)
         {
-            return;
+            checkedGoal = goal;
+            checkedFont = goalText.font;
+            supportsKorean = checkedFont != null && checkedFont.HasCharacters(message, out _, true, true);
         }
-
-        // 1단계: 두 번째 입고 시설 구매
-        if (secondInbound != null &&
-            !secondInbound.activeSelf)
+        if (!supportsKorean)
+            message = progressionManager.GetGoalText(goal, false);
+        if (goal == ProgressionManager.GoalId.Complete)
+            message = $"<color=#F5C86C><b>{message}</b></color>";
+        else
         {
-            goalText.text =
-                "Goal: Unlock 2nd Inbound (300)";
-
-            return;
+            if (message.StartsWith("紐⑺몴: ")) message = message.Substring(4);
+            else if (message.StartsWith("Goal: ")) message = message.Substring(6);
+            message = $"<size=55%><color=#45E0CE>NEXT GOAL</color></size>\n<color=#FFFFFF>{message}</color>";
         }
-
-        // 2단계: 출고 직원 고용
-        if (deliveryWorker != null &&
-            !deliveryWorker.activeSelf)
-        {
-            goalText.text =
-                "Goal: Hire Delivery Worker (500)";
-
-            return;
-        }
-
-        // 3단계: 입고 직원 고용
-        if (inputWorker != null &&
-            !inputWorker.activeSelf)
-        {
-            goalText.text =
-                "Goal: Hire Input Worker (1,000)";
-
-            return;
-        }
-
-        // 자동화 완료
-        goalText.text =
-            "Goal: Upgrade your warehouse!";
+        if (goalText.text != message) goalText.text = message;
     }
 }

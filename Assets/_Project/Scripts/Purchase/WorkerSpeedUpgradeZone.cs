@@ -34,6 +34,8 @@ public class WorkerSpeedUpgradeZone : MonoBehaviour
     private int paidAmount;
     private Coroutine paymentCoroutine;
 
+    public int WorkerSpeedLevel => workerSpeedLevel;
+
     public bool CanUpgrade =>
         workerSpeedLevel < maxWorkerSpeedLevel;
 
