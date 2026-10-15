@@ -47,13 +47,22 @@ public class ParcelBox : MonoBehaviour
         sourceSpawner = spawner;
     }
 
-    public void PickUp(
-        Transform carryPoint,
-        Vector3 stackPosition)
+    // Existing player callers keep the same API and replenishment behavior.
+    public void PickUp(Transform carryPoint, Vector3 stackPosition)
+    {
+        TryPickUp(carryPoint, stackPosition);
+    }
+
+    public bool IsCarriedBy(Transform carryPoint)
+    {
+        return carryPoint != null && isCarried && !isInStation && transform.parent == carryPoint;
+    }
+
+    public bool TryPickUp(Transform carryPoint, Vector3 stackPosition)
     {
         if (!IsAvailable || carryPoint == null)
         {
-            return;
+            return false;
         }
 
         isCarried = true;
@@ -74,6 +83,7 @@ public class ParcelBox : MonoBehaviour
             sourceSpawner.RequestNewBox();
             sourceSpawner = null;
         }
+        return true;
     }
 
     // 미분류 상자를 입력 적재대에 놓는다.

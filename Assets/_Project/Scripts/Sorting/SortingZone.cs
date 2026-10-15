@@ -149,16 +149,6 @@ public class SortingZone : MonoBehaviour
             return;
         }
 
-        ParcelBox box =
-            worker.TakeCarriedBox();
-
-        if (box == null)
-        {
-            return;
-        }
-
-        sortingStation.TryAddInputBox(
-            box
-        );
+        worker.TryTransferCarriedBox(sortingStation);
     }
 }

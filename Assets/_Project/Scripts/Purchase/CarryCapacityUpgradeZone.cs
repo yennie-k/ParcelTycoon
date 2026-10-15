@@ -179,25 +179,8 @@ public class CarryCapacityUpgradeZone : MonoBehaviour
 
     private void UpdateText()
     {
-        if (priceText == null ||
-            playerCarry == null)
-        {
-            return;
-        }
-
-        if (!playerCarry.CanUpgradeCarry)
-        {
-            priceText.text =
-                $"Carry\nMAX\n{playerCarry.MaxCarryCount}";
-
-            return;
-        }
-
-        int remaining =
-            CurrentCost - paidAmount;
-
-        priceText.text =
-            $"Carry Lv.{playerCarry.CarryLevel}\n" +
-            $"{remaining:N0}";
+        if (priceText == null || playerCarry == null) return;
+        priceText.text = PurchasePadText.Upgrade("플레이어 운반량", playerCarry.CarryLevel,
+            playerCarry.CanUpgradeCarry, CurrentCost, paidAmount);
     }
 }

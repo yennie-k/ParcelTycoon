@@ -209,24 +209,8 @@ public class WorkerSpeedUpgradeZone : MonoBehaviour
 
     private void UpdateText()
     {
-        if (priceText == null)
-        {
-            return;
-        }
-
-        if (!CanUpgrade)
-        {
-            priceText.text =
-                $"Worker MAX\nLv.{workerSpeedLevel}";
-
-            return;
-        }
-
-        int remaining =
-            CurrentCost - paidAmount;
-
-        priceText.text =
-            $"Worker Lv.{workerSpeedLevel}\n" +
-            $"{remaining:N0}";
+        if (priceText == null) return;
+        priceText.text = PurchasePadText.Upgrade("직원 이동 속도", workerSpeedLevel,
+            CanUpgrade, CurrentCost, paidAmount);
     }
 }

@@ -4,6 +4,9 @@ using UnityEngine;
 
 public class PurchaseZone : MonoBehaviour
 {
+    [Header("Display")]
+    [SerializeField] private string displayName = "시설 구매";
+
     [Header("Purchase Settings")]
     [SerializeField] private int purchaseCost = 300;
     [SerializeField] private int paymentPerTick = 50;
@@ -131,16 +134,8 @@ public class PurchaseZone : MonoBehaviour
 
     private void UpdatePriceText()
     {
-        if (priceText == null)
-        {
-            return;
-        }
-
-        int remainingCost =
-            purchaseCost - paidAmount;
-
-        priceText.text =
-            $"{remainingCost:N0}";
+        if (priceText == null) return;
+        priceText.text = PurchasePadText.Purchase(displayName, purchaseCost, paidAmount);
     }
 
     private void CompletePurchase()

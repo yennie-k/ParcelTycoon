@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class InputWorkerAI : MonoBehaviour
@@ -14,6 +15,12 @@ public class InputWorkerAI : MonoBehaviour
     [SerializeField] private float rotationSpeed = 10f;
     [SerializeField] private float pickupDistance = 1.2f;
 
+    [Header("Carry Settings")]
+    [SerializeField, Range(1, 3)] private int maxCarryCount = 1;
+    private const float CollectionDuration = 1.5f;
+    private bool collecting;
+    private float collectionDeadline;
+
     [Header("References")]
     [SerializeField] private Transform carryPoint;
 
@@ -27,9 +34,19 @@ public class InputWorkerAI : MonoBehaviour
     private WorkerState currentState;
 
     private ParcelBox targetBox;
-    private ParcelBox carriedBox;
+    [SerializeField] private List<ParcelBox> carriedBoxes = new List<ParcelBox>();
 
-    public bool HasBox => carriedBox != null;
+    public int CarryCount => carriedBoxes.Count;
+    public int MaxCarryCount => Mathf.Clamp(maxCarryCount, 1, 3);
+    public bool HasBox => CarryCount > 0;
+    public bool IsFull => CarryCount >= MaxCarryCount;
+
+
+    // Absolute capacity for a future shared upgrade; existing cargo is never discarded.
+    public void SetMaxCarryCount(int capacity)
+    {
+        maxCarryCount = Mathf.Clamp(capacity, 1, 3);
+    }
 
     public float MoveSpeed => moveSpeed;
 
@@ -58,14 +75,42 @@ public class InputWorkerAI : MonoBehaviour
 
     private void OnEnable()
     {
-        currentState = WorkerState.SearchingBox;
-
+        RefreshCarriedBoxes();
+        // Recover owned children if a runtime list was lost during a script reload.
+        if (carryPoint != null)
+            foreach (ParcelBox box in carryPoint.GetComponentsInChildren<ParcelBox>(true))
+                if (box.IsCarriedBy(carryPoint) && !carriedBoxes.Contains(box)) carriedBoxes.Add(box);
+        collecting = false;
         targetBox = null;
-        carriedBox = null;
+        currentState = HasBox ? WorkerState.MovingToSorting : WorkerState.SearchingBox;
+        UpdateCarryPositions();
+    }
+
+    private void OnDisable()
+    {
+        // Resume delivery on enable instead of starting another collection window.
+        collecting = false;
+        targetBox = null;
+    }
+
+    private void RefreshCarriedBoxes()
+    {
+        if (carriedBoxes == null) carriedBoxes = new List<ParcelBox>();
+        if (carriedBoxes.RemoveAll(box => box == null || !box.IsCarriedBy(carryPoint)) > 0)
+            UpdateCarryPositions();
+        if (!HasBox) collecting = false;
+    }
+
+    private void UpdateCarryPositions()
+    {
+        for (int i = 0; i < carriedBoxes.Count; i++)
+            carriedBoxes[i].transform.localPosition = Vector3.up * (i * 1.05f);
     }
 
     private void Update()
     {
+        RefreshCarriedBoxes();
+        FinishCollectionIfNeeded();
         switch (currentState)
         {
             case WorkerState.SearchingBox:
@@ -80,6 +125,21 @@ public class InputWorkerAI : MonoBehaviour
                 MoveToSortingZone();
                 break;
         }
+    }
+
+    private int CollectionLimit => Mathf.Min(MaxCarryCount, Mathf.Max(0, sortingStation == null ? 0 : sortingStation.MaxInputCount - sortingStation.InputCount));
+
+    private bool FinishCollectionIfNeeded()
+    {
+        if (HasBox && (CarryCount >= CollectionLimit ||
+            (collecting && Time.time >= collectionDeadline)))
+        {
+            collecting = false;
+            targetBox = null;
+            currentState = WorkerState.MovingToSorting;
+            return true;
+        }
+        return false;
     }
 
     private void SearchForBox()
@@ -144,6 +204,7 @@ public class InputWorkerAI : MonoBehaviour
 
     private void MoveToBox()
     {
+        if (FinishCollectionIfNeeded()) return;
         if (targetBox == null ||
             !targetBox.IsAvailable ||
             targetBox.CurrentState !=
@@ -175,33 +236,43 @@ public class InputWorkerAI : MonoBehaviour
 
     private void PickUpBox()
     {
-        if (targetBox == null ||
-            !targetBox.IsAvailable)
+        if (FinishCollectionIfNeeded()) return;
+        if (targetBox == null || !targetBox.IsAvailable ||
+            targetBox.CurrentState != ParcelBox.BoxState.Unsorted)
         {
             targetBox = null;
-
-            currentState =
-                WorkerState.SearchingBox;
-
+            currentState = WorkerState.SearchingBox;
             return;
         }
-
-        carriedBox = targetBox;
-
-        carriedBox.PickUp(
-            carryPoint,
-            Vector3.zero
-        );
-
+        // Capacity may have changed while walking to this box.
+        if (CarryCount >= CollectionLimit)
+        {
+            targetBox = null;
+            currentState = HasBox ? WorkerState.MovingToSorting : WorkerState.SearchingBox;
+            return;
+        }
+        if (!targetBox.TryPickUp(carryPoint, Vector3.up * (CarryCount * 1.05f)))
+        {
+            targetBox = null;
+            currentState = WorkerState.SearchingBox;
+            return;
+        }
+        bool firstBox = !HasBox;
+        carriedBoxes.Add(targetBox);
+        UpdateCarryPositions();
         targetBox = null;
-
-        currentState =
-            WorkerState.MovingToSorting;
+        if (firstBox)
+        {
+            collecting = true;
+            collectionDeadline = Time.time + CollectionDuration;
+        }
+        currentState = WorkerState.SearchingBox;
+        FinishCollectionIfNeeded();
     }
 
     private void MoveToSortingZone()
     {
-        if (carriedBox == null)
+        if (!HasBox)
         {
             currentState =
                 WorkerState.SearchingBox;
@@ -238,22 +309,20 @@ public class InputWorkerAI : MonoBehaviour
         // SortingZone Trigger가 담당한다.
     }
 
-    // SortingZone이 직원에게 상자를 요청할 때 사용
-    public ParcelBox TakeCarriedBox()
+    // Commit removal only after the station accepted and reparented the box.
+    public bool TryTransferCarriedBox(SortingStation station)
     {
-        if (carriedBox == null)
-        {
-            return null;
-        }
-
-        ParcelBox box = carriedBox;
-
-        carriedBox = null;
-
-        currentState =
-            WorkerState.SearchingBox;
-
-        return box;
+        RefreshCarriedBoxes();
+        if (!isActiveAndEnabled || currentState != WorkerState.MovingToSorting ||
+            station == null || station != sortingStation || !HasBox) return false;
+        ParcelBox box = carriedBoxes[carriedBoxes.Count - 1];
+        if (!station.TryAddInputBox(box)) return false;
+        // Guard the station's early-return placement path if its input reference is missing.
+        if (box.IsCarriedBy(carryPoint)) return false;
+        carriedBoxes.Remove(box);
+        UpdateCarryPositions();
+        currentState = HasBox ? WorkerState.MovingToSorting : WorkerState.SearchingBox;
+        return true;
     }
 
     private void MoveTowards(
