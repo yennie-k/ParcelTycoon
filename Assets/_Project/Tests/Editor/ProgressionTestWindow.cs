@@ -18,9 +18,9 @@ public class ProgressionTestWindow : EditorWindow
     private Vector2 scroll;
     private static readonly ProgressionManager.GoalId[] Expected = {
         ProgressionManager.GoalId.SecondInbound, ProgressionManager.GoalId.DeliveryWorker,
-        ProgressionManager.GoalId.InputWorker, ProgressionManager.GoalId.WarehouseExpansion,
-        ProgressionManager.GoalId.SortingLevel2, ProgressionManager.GoalId.CarryLevel2,
-        ProgressionManager.GoalId.WorkerSpeedLevel2, ProgressionManager.GoalId.AllUpgradesMax,
+        ProgressionManager.GoalId.InputWorker, ProgressionManager.GoalId.BuyTwoUpgrades,
+        ProgressionManager.GoalId.WarehouseExpansion, ProgressionManager.GoalId.AllUpgradesLevel2,
+        ProgressionManager.GoalId.AnyUpgradeMax, ProgressionManager.GoalId.AllUpgradesMax,
         ProgressionManager.GoalId.Complete };
 
     [MenuItem("Tools/ParcelTycoon/Progression Test")]
@@ -115,7 +115,7 @@ public class ProgressionTestWindow : EditorWindow
         f.sortingPad = Reference<GameObject>(f.manager, "sortingSpeedUpgradeZone");
         f.carryPad = Reference<GameObject>(f.manager, "carryCapacityUpgradeZone");
         f.workerPad = Reference<GameObject>(f.manager, "workerSpeedUpgradeZone");
-        f.expansionPad = SceneManager.GetSceneAt(0).GetRootGameObjects().Single(g => g.name == "WarehouseExpansionZone");
+        f.expansionPad = Reference<GameObject>(f.manager, "warehouseExpansionPurchaseZone");
         // Do not allow an Inspector assignment to target a component in another scene.
         foreach (var obj in new Component[] { f.manager, f.ui, f.text, f.sorting, f.carry, f.worker })
             if (obj.gameObject.scene.path != Path) throw new InvalidOperationException("Cross-scene test reference.");
@@ -136,15 +136,15 @@ public class ProgressionTestWindow : EditorWindow
             case 1: f.inbound.SetActive(true); break;
             case 2: f.delivery.SetActive(true); break;
             case 3: f.input.SetActive(true); break;
-            case 4: f.expansion.SetActive(true); break;
-            case 5: f.sorting.RestoreSortingLevel(2); break;
-            case 6: f.carry.RestoreCarryLevel(2); break;
-            case 7: f.worker.RestoreWorkerLevel(2); break;
+            case 4: f.sorting.RestoreSortingLevel(2); f.carry.RestoreCarryLevel(2); break;
+            case 5: f.expansion.SetActive(true); break;
+            case 6: f.worker.RestoreWorkerLevel(2); break;
+            case 7: f.carry.RestoreCarryLevel(f.carry.MaxCarryLevel); break;
             case 8: f.sorting.RestoreSortingLevel(f.sorting.MaxSortingLevel); f.carry.RestoreCarryLevel(f.carry.MaxCarryLevel); f.worker.RestoreWorkerLevel(4); break;
         }
     }
 
-    private static string Pads(Fixture f) => $"입고={f.inboundPad.activeSelf}, 출고직원={f.deliveryPad.activeSelf}, 입고직원={f.inputPad.activeSelf}, 분류={f.sortingPad.activeSelf}, 운반={f.carryPad.activeSelf}, 직원속도={f.workerPad.activeSelf}, 독립창고={f.expansionPad.activeSelf}";
+    private static string Pads(Fixture f) => $"입고={f.inboundPad.activeSelf}, 출고직원={f.deliveryPad.activeSelf}, 입고직원={f.inputPad.activeSelf}, 분류={f.sortingPad.activeSelf}, 운반={f.carryPad.activeSelf}, 직원속도={f.workerPad.activeSelf}, 창고={f.expansionPad.activeSelf}, 업그레이드구매={f.manager.PurchasedUpgradeCount}";
 
     private void Check(Fixture f, string name, ProgressionManager.GoalId expected)
     {
@@ -161,18 +161,18 @@ public class ProgressionTestWindow : EditorWindow
         if (!ok) report += "원인: 목표 ID 또는 실제 GoalUI 문구 불일치 (폰트 지원 포함).\n";
     }
 
-    private void CheckPads(Fixture f, string name, int stage)
+    private void CheckPads(Fixture f, string name, int stage, bool expansionAvailable = false)
     {
         f.manager.RefreshProgression();
         bool ok = f.inboundPad.activeSelf == (stage == 0) && f.deliveryPad.activeSelf == (stage == 1) &&
-            f.inputPad.activeSelf == (stage == 2) && f.sortingPad.activeSelf == (stage >= 3) &&
-            f.carryPad.activeSelf == (stage >= 3) && f.workerPad.activeSelf == (stage >= 3) && f.expansionPad.activeSelf;
+            f.inputPad.activeSelf == (stage == 2) && f.sortingPad.activeSelf == (stage >= 2) &&
+            f.carryPad.activeSelf == (stage >= 1) && f.workerPad.activeSelf == (stage >= 3) && f.expansionPad.activeSelf == expansionAvailable;
         if (ok) passed++; else failed++;
         report += $"\n{(ok ? "PASS" : "FAIL")} [{name}] 패드 활성화 계약, 목표 ID={f.manager.CurrentGoal}\n{Pads(f)}\n";
         if (!ok)
         {
             report += $"예상 GoalId={lastExpectedGoal}, 실제 GoalId={f.manager.CurrentGoal}\n예상 목표 문구={f.manager.GetGoalText(lastExpectedGoal)}\n실제 UI 문구={Regex.Replace(f.text.text, "<[^>]*>", "")}\n";
-            report += "원인: 기존 입고/직원 구매 순서 또는 독립 창고/업그레이드 패드 유지 조건 위반.\n";
+            report += "원인: 입고/직원 구매 순서, 단계별 업그레이드 또는 창고 해금 조건 위반.\n";
         }
     }
 
@@ -200,7 +200,7 @@ public class ProgressionTestWindow : EditorWindow
         Reset(f);
         for (int i = 0; i < Expected.Length; i++)
         {
-            Advance(f, i); Check(f, "순차 " + (i + 1), Expected[i]); CheckPads(f, "순차 " + (i + 1), Math.Min(i, 3));
+            Advance(f, i); Check(f, "순차 " + (i + 1), Expected[i]); CheckPads(f, "순차 " + (i + 1), Math.Min(i, 3), i == 4);
         }
         step = 8; sequentialState = true;
     }
@@ -208,18 +208,59 @@ public class ProgressionTestWindow : EditorWindow
     private void Skips(Fixture f)
     {
         Reset(f); f.expansion.SetActive(true);
-        Check(f, "창고 선구매, 초기 목표 유지", Expected[0]);
+        Check(f, "기존 창고 구매 상태, 초기 목표 유지", Expected[0]);
         for (int i = 1; i <= 3; i++) Advance(f, i);
-        Check(f, "창고 목표 건너뛰기", ProgressionManager.GoalId.SortingLevel2);
-        f.sorting.RestoreSortingLevel(3); f.carry.RestoreCarryLevel(2);
-        Check(f, "분류/운반 선행 달성 건너뛰기", ProgressionManager.GoalId.WorkerSpeedLevel2);
-        CheckPads(f, "선행 달성에도 세 업그레이드 유지", 3);
-        f.worker.RestoreWorkerLevel(4); f.sorting.RestoreSortingLevel(4); f.carry.RestoreCarryLevel(3);
+        Check(f, "기존 창고 구매자는 업그레이드 횟수 목표부터", ProgressionManager.GoalId.BuyTwoUpgrades);
+        CheckPads(f, "기존 창고 재구매 차단", 3);
+        f.sorting.RestoreSortingLevel(3);
+        Check(f, "동일 업그레이드 두 번 및 창고 목표 건너뛰기", ProgressionManager.GoalId.AllUpgradesLevel2);
+        f.carry.RestoreCarryLevel(2); f.worker.RestoreWorkerLevel(2);
+        Check(f, "모두 Lv.2 건너뛰기", ProgressionManager.GoalId.AnyUpgradeMax);
+        f.carry.RestoreCarryLevel(f.carry.MaxCarryLevel);
+        Check(f, "1종 MAX 달성", ProgressionManager.GoalId.AllUpgradesMax);
+        f.worker.RestoreWorkerLevel(4); f.sorting.RestoreSortingLevel(f.sorting.MaxSortingLevel);
         Check(f, "완료 상태 복원 시 즉시 완료", ProgressionManager.GoalId.Complete);
         f.expansion.SetActive(false);
         Check(f, "MAX지만 창고 미구매", ProgressionManager.GoalId.WarehouseExpansion);
-        CheckPads(f, "창고 목표 중 세 업그레이드 유지", 3);
+        CheckPads(f, "창고 목표 중 세 업그레이드 유지", 3, true);
         step = 3; sequentialState = false;
+    }
+
+    private void Unlocks(Fixture f)
+    {
+        Reset(f); CheckPads(f, "신규 상태", 0);
+        Advance(f, 1); CheckPads(f, "입고 구매 후 Carry만 개방", 1);
+        f.carry.RestoreCarryLevel(3);
+        CheckPads(f, "자동화 전 2회 구매해도 창고 잠금", 1);
+        f.carry.RestoreCarryLevel(1);
+        Advance(f, 2); CheckPads(f, "출고 고용 후 Carry/Sorting 개방", 2);
+        Advance(f, 3); CheckPads(f, "입고 고용 후 3종 개방, 창고 잠금", 3);
+        f.sorting.RestoreSortingLevel(2); CheckPads(f, "업그레이드 1회, 창고 잠금", 3);
+        f.sorting.RestoreSortingLevel(3); CheckPads(f, "같은 업그레이드 2회, 창고 개방", 3, true);
+        f.sorting.RestoreSortingLevel(2); f.carry.RestoreCarryLevel(2);
+        CheckPads(f, "다른 업그레이드 2회, 창고 개방", 3, true);
+        f.expansion.SetActive(true); CheckPads(f, "구매 완료 창고 패드 숨김", 3);
+        step = 3; sequentialState = false;
+    }
+
+    private void Fallback(Fixture f)
+    {
+        TMP_FontAsset previous = f.text.font;
+        TMP_FontAsset latin = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset");
+        if (latin == null) throw new InvalidOperationException("영문 fallback 검사 폰트가 없습니다.");
+        try
+        {
+            f.text.font = latin;
+            f.ui.RefreshGoal();
+            string raw = f.manager.GetGoalText(f.manager.CurrentGoal, false);
+            string core = raw.StartsWith("Goal: ") ? raw.Substring(6) : raw;
+            string expected = f.manager.CurrentGoal == ProgressionManager.GoalId.Complete ? core : "NEXT GOAL\n" + core;
+            string actual = Regex.Replace(f.text.text, "<[^>]*>", "").Replace("\r", "");
+            bool ok = actual == expected;
+            if (ok) passed++; else failed++;
+            report += $"\n{(ok ? "PASS" : "FAIL")} [영문 fallback] 예상 문구={expected}\n실제 문구={actual}\n";
+        }
+        finally { f.text.font = previous; f.ui.RefreshGoal(); }
     }
 
     private void StartTest()
@@ -244,9 +285,12 @@ public class ProgressionTestWindow : EditorWindow
 
     private void OnGUI()
     {
-        EditorGUILayout.HelpBox("실제 목표 판정·GoalUI를 재사용합니다. 결제/저장 복원 테스트는 아닙니다.\nMainScene과 JSON은 읽거나 수정하지 않습니다.", MessageType.Info);
+        EditorGUILayout.HelpBox("진행 검사는 격리 씬의 실제 목표 판정·GoalUI를 재사용합니다.\n저장 호환 검사는 임시 JSON만 사용하며 MainScene 설정은 읽기 전용으로 확인합니다.", MessageType.Info);
         using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
             if (GUILayout.Button("테스트 시작")) StartTest();
+        using (new EditorGUI.DisabledScope(EditorApplication.isPlayingOrWillChangePlaymode))
+            if (GUILayout.Button("신규 설정·저장 호환 검사 (격리)"))
+                ParcelBalanceRegressionChecks.RunFromMenu();
         bool running = SessionState.GetBool(Key + "active", false) && EditorApplication.isPlaying;
         using (new EditorGUI.DisabledScope(!running))
         {
@@ -254,7 +298,8 @@ public class ProgressionTestWindow : EditorWindow
             if (GUILayout.Button("다음 단계 진행")) Run(f => { if (!sequentialState) { Reset(f); step = 0; sequentialState = true; } else if (step < 8) Advance(f, ++step); Check(f, "단계 " + (step + 1), Expected[step]); });
             if (GUILayout.Button("전체 순차 검사")) { passed = failed = 0; report = "전체 순차 검사"; Run(Sequential); }
             if (GUILayout.Button("선행 달성 / 자동 건너뛰기 검사")) Run(Skips);
-            if (GUILayout.Button("구매·업그레이드 패드 활성화 검사")) Run(f => CheckPads(f, "현재 패드", Math.Min(step, 3)));
+            if (GUILayout.Button("구매·업그레이드 패드 활성화 검사")) Run(Unlocks);
+            if (GUILayout.Button("영문 fallback 표시 검사")) Run(Fallback);
             if (GUILayout.Button("테스트 상태 초기화")) Run(f => { Reset(f); step = 0; sequentialState = true; Check(f, "신규 상태 초기화", Expected[0]); });
         }
         if (SessionState.GetBool(Key + "active", false) && GUILayout.Button("테스트 종료 / 기존 씬 복귀")) EndTest();

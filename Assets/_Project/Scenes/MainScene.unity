@@ -551,7 +551,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &153720797
 Transform:
   m_ObjectHideFlags: 0
@@ -804,7 +804,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: aec6fd2cecf90458e9c87a57fc81665d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MoneyManager
-  startingMoney: 4000
+  startingMoney: 0
   moneyText: {fileID: 1380501649}
 --- !u!4 &237093068
 Transform:
@@ -843,6 +843,7 @@ MonoBehaviour:
   secondInboundPurchaseZone: {fileID: 620742497}
   deliveryWorkerHireZone: {fileID: 1395281693}
   inputWorkerHireZone: {fileID: 1847142254}
+  warehouseExpansionPurchaseZone: {fileID: 473666156}
   sortingSpeedUpgradeZone: {fileID: 153720796}
   carryCapacityUpgradeZone: {fileID: 2007357964}
   workerSpeedUpgradeZone: {fileID: 1170691097}
@@ -1311,7 +1312,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &473666157
 Transform:
   m_ObjectHideFlags: 0
@@ -1341,7 +1342,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PurchaseZone
   displayName: "창고 확장"
-  purchaseCost: 300
+  purchaseCost: 2500
   paymentPerTick: 50
   paymentInterval: 0.1
   moneyManager: {fileID: 237093067}
@@ -2668,7 +2669,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &1170691098
 Transform:
   m_ObjectHideFlags: 0
@@ -3345,7 +3346,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1395281694
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4675,7 +4676,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1847142255
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5196,7 +5197,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &2007357965
 Transform:
   m_ObjectHideFlags: 0
