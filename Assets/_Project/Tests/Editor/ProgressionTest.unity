@@ -292,6 +292,7 @@ MonoBehaviour:
   sortingStation: {fileID: 1573821829}
   playerCarry: {fileID: 662034457}
   workerSpeedUpgrade: {fileID: 1170691099}
+  warehouseExpansionPurchaseZone: {fileID: 473666156}
   secondInboundPurchaseZone: {fileID: 620742497}
   deliveryWorkerHireZone: {fileID: 1395281693}
   inputWorkerHireZone: {fileID: 1847142254}

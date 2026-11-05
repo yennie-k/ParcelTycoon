@@ -33,6 +33,7 @@ public class PlayerCarry : MonoBehaviour
     public int MaxCarryLevel => maxCarryLevel;
 
     public int MaxCarryCount => maxCarryCount;
+    public int NextCarryCount => CanUpgradeCarry ? maxCarryCount + 1 : maxCarryCount;
 
     public bool CanUpgradeCarry =>
         carryLevel < maxCarryLevel;

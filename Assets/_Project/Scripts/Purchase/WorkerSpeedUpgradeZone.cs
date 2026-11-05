@@ -211,6 +211,16 @@ public class WorkerSpeedUpgradeZone : MonoBehaviour
     {
         if (priceText == null) return;
         priceText.text = PurchasePadText.Upgrade("직원 이동 속도", workerSpeedLevel,
-            CanUpgrade, CurrentCost, paidAmount);
+            CanUpgrade, CurrentCost, paidAmount, SpeedText(0f), SpeedText(CanUpgrade ? speedIncreasePerLevel : 0f));
+    }
+
+    private string SpeedText(float increase)
+    {
+        if (inputWorker != null && deliveryWorker != null &&
+            !Mathf.Approximately(inputWorker.MoveSpeed, deliveryWorker.MoveSpeed))
+            return $"입고 {inputWorker.MoveSpeed + increase:F2} / 출고 {deliveryWorker.MoveSpeed + increase:F2}";
+        if (inputWorker != null) return $"{inputWorker.MoveSpeed + increase:F2}";
+        if (deliveryWorker != null) return $"{deliveryWorker.MoveSpeed + increase:F2}";
+        return "미연결";
     }
 }

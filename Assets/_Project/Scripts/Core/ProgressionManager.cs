@@ -18,6 +18,8 @@ public class ProgressionManager : MonoBehaviour
     [SerializeField] private GameObject deliveryWorkerHireZone;
     [SerializeField] private GameObject inputWorkerHireZone;
 
+    [SerializeField] private GameObject warehouseExpansionPurchaseZone;
+
     [Header("Upgrade Zones")]
     [SerializeField] private GameObject sortingSpeedUpgradeZone;
     [SerializeField] private GameObject carryCapacityUpgradeZone;
@@ -27,8 +29,8 @@ public class ProgressionManager : MonoBehaviour
     {
         Loading = 0, ConfigurationMissing = 1,
         SecondInbound = 10, DeliveryWorker = 20, InputWorker = 30,
-        WarehouseExpansion = 40, SortingLevel2 = 50, CarryLevel2 = 60,
-        WorkerSpeedLevel2 = 70, AllUpgradesMax = 80, Complete = 90
+        BuyTwoUpgrades = 35, WarehouseExpansion = 40, AllUpgradesLevel2 = 50,
+        AnyUpgradeMax = 70, AllUpgradesMax = 80, Complete = 90
     }
 
     private sealed class GoalDefinition
@@ -46,10 +48,10 @@ public class ProgressionManager : MonoBehaviour
         new GoalDefinition(GoalId.SecondInbound, "목표: 두 번째 입고 시설 해금", "Goal: Unlock second inbound"),
         new GoalDefinition(GoalId.DeliveryWorker, "목표: 출고 직원 고용", "Goal: Hire delivery worker"),
         new GoalDefinition(GoalId.InputWorker, "목표: 입고 직원 고용", "Goal: Hire input worker"),
+        new GoalDefinition(GoalId.BuyTwoUpgrades, "목표: 업그레이드 2회 구매", "Buy 2 Upgrades"),
         new GoalDefinition(GoalId.WarehouseExpansion, "목표: 창고 확장", "Goal: Expand warehouse"),
-        new GoalDefinition(GoalId.SortingLevel2, "목표: 분류 속도 Lv.2 달성", "Goal: Reach sorting Lv.2"),
-        new GoalDefinition(GoalId.CarryLevel2, "목표: 운반량 Lv.2 달성", "Goal: Reach carry Lv.2"),
-        new GoalDefinition(GoalId.WorkerSpeedLevel2, "목표: 직원 속도 Lv.2 달성", "Goal: Reach worker speed Lv.2"),
+        new GoalDefinition(GoalId.AllUpgradesLevel2, "목표: 모든 업그레이드 Lv.2 이상 달성", "Goal: Reach Lv.2 in all upgrades"),
+        new GoalDefinition(GoalId.AnyUpgradeMax, "목표: 업그레이드 1종 MAX 달성", "Goal: Max out one upgrade"),
         new GoalDefinition(GoalId.AllUpgradesMax, "목표: 모든 업그레이드 MAX 달성", "Goal: Max out all upgrades")
     };
 
@@ -84,9 +86,11 @@ public class ProgressionManager : MonoBehaviour
             case GoalId.DeliveryWorker: return deliveryWorker.activeSelf;
             case GoalId.InputWorker: return inputWorker.activeSelf;
             case GoalId.WarehouseExpansion: return warehouseExpansion.activeSelf;
-            case GoalId.SortingLevel2: return sortingStation.SortingLevel >= 2;
-            case GoalId.CarryLevel2: return playerCarry.CarryLevel >= 2;
-            case GoalId.WorkerSpeedLevel2: return workerSpeedUpgrade.WorkerSpeedLevel >= 2;
+            case GoalId.BuyTwoUpgrades: return PurchasedUpgradeCount >= 2;
+            case GoalId.AllUpgradesLevel2:
+                return sortingStation.SortingLevel >= 2 && playerCarry.CarryLevel >= 2 && workerSpeedUpgrade.WorkerSpeedLevel >= 2;
+            case GoalId.AnyUpgradeMax:
+                return !sortingStation.CanUpgradeSorting || !playerCarry.CanUpgradeCarry || !workerSpeedUpgrade.CanUpgrade;
             case GoalId.AllUpgradesMax:
                 return !sortingStation.CanUpgradeSorting && !playerCarry.CanUpgradeCarry && !workerSpeedUpgrade.CanUpgrade;
             default: return false;
@@ -103,141 +107,27 @@ public class ProgressionManager : MonoBehaviour
         RefreshProgression();
     }
 
+    // Derived from completed levels, never from partial payments or an extra save field.
+    public int PurchasedUpgradeCount =>
+        (sortingStation == null ? 0 : Mathf.Max(0, sortingStation.SortingLevel - 1)) +
+        (playerCarry == null ? 0 : Mathf.Max(0, playerCarry.CarryLevel - 1)) +
+        (workerSpeedUpgrade == null ? 0 : Mathf.Max(0, workerSpeedUpgrade.WorkerSpeedLevel - 1));
+
     public void RefreshProgression()
     {
         if (!SaveManager.GameplayReady) return;
-        bool secondInboundUnlocked =
-            secondInbound != null &&
-            secondInbound.activeSelf;
+        bool inbound = secondInbound != null && secondInbound.activeSelf;
+        bool delivery = deliveryWorker != null && deliveryWorker.activeSelf;
+        bool input = inputWorker != null && inputWorker.activeSelf;
 
-        bool deliveryWorkerUnlocked =
-            deliveryWorker != null &&
-            deliveryWorker.activeSelf;
-
-        bool inputWorkerUnlocked =
-            inputWorker != null &&
-            inputWorker.activeSelf;
-
-        // -------------------------
-        // 1단계
-        // 두 번째 입고 시설
-        // -------------------------
-
-        if (!secondInboundUnlocked)
-        {
-            SetZone(
-                secondInboundPurchaseZone,
-                true
-            );
-
-            SetZone(
-                deliveryWorkerHireZone,
-                false
-            );
-
-            SetZone(
-                inputWorkerHireZone,
-                false
-            );
-
-            SetUpgradeZones(false);
-
-            return;
-        }
-
-        // -------------------------
-        // 2단계
-        // 출고 직원 고용
-        // -------------------------
-
-        if (!deliveryWorkerUnlocked)
-        {
-            SetZone(
-                secondInboundPurchaseZone,
-                false
-            );
-
-            SetZone(
-                deliveryWorkerHireZone,
-                true
-            );
-
-            SetZone(
-                inputWorkerHireZone,
-                false
-            );
-
-            SetUpgradeZones(false);
-
-            return;
-        }
-
-        // -------------------------
-        // 3단계
-        // 입고 직원 고용
-        // -------------------------
-
-        if (!inputWorkerUnlocked)
-        {
-            SetZone(
-                secondInboundPurchaseZone,
-                false
-            );
-
-            SetZone(
-                deliveryWorkerHireZone,
-                false
-            );
-
-            SetZone(
-                inputWorkerHireZone,
-                true
-            );
-
-            SetUpgradeZones(false);
-
-            return;
-        }
-
-        // -------------------------
-        // 자동화 완료
-        // 모든 업그레이드 개방
-        // -------------------------
-
-        SetZone(
-            secondInboundPurchaseZone,
-            false
-        );
-
-        SetZone(
-            deliveryWorkerHireZone,
-            false
-        );
-
-        SetZone(
-            inputWorkerHireZone,
-            false
-        );
-
-        SetUpgradeZones(true);
-    }
-
-    private void SetUpgradeZones(bool active)
-    {
-        SetZone(
-            sortingSpeedUpgradeZone,
-            active
-        );
-
-        SetZone(
-            carryCapacityUpgradeZone,
-            active
-        );
-
-        SetZone(
-            workerSpeedUpgradeZone,
-            active
-        );
+        SetZone(secondInboundPurchaseZone, !inbound);
+        SetZone(deliveryWorkerHireZone, inbound && !delivery);
+        SetZone(inputWorkerHireZone, inbound && delivery && !input);
+        SetZone(carryCapacityUpgradeZone, inbound);
+        SetZone(sortingSpeedUpgradeZone, inbound && delivery);
+        SetZone(workerSpeedUpgradeZone, inbound && delivery && input);
+        SetZone(warehouseExpansionPurchaseZone, inbound && delivery && input &&
+            PurchasedUpgradeCount >= 2 && warehouseExpansion != null && !warehouseExpansion.activeSelf);
     }
 
     private void SetZone(

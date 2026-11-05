@@ -5,7 +5,8 @@ public static class PurchasePadText
     {
         switch (name)
         {
-            case "추가 입고 시설": name = "추가 입고\n시설"; break;
+            case "추가 입고 시설":
+            case "두 번째 입고 시설": name = "두 번째\n입고 시설"; break;
             case "입고 직원 고용": name = "입고 직원\n고용"; break;
             case "출고 직원 고용": name = "출고 직원\n고용"; break;
             case "플레이어 운반량": name = "플레이어\n운반량"; break;
@@ -16,22 +17,22 @@ public static class PurchasePadText
 
     private static string Price(int cost, int paid)
     {
-        return paid > 0
-            ? $"남은 {cost - paid:N0}원\n<size=85%>결제 {paid:N0}원</size>"
-            : $"구매 {cost:N0}원";
+        return paid > 0 ? $"남은 금액 ₩{cost - paid:N0}" : $"₩{cost:N0}";
     }
 
     public static string Purchase(string name, int cost, int paid)
     {
-        return Title(name) + $"<size=72%>{Price(cost, paid)}</size>";
+        return Title(name) + $"<size=80%><b>{Price(cost, paid)}</b></size>";
     }
 
-    public static string Upgrade(string name, int level, bool canUpgrade, int cost, int paid)
+    public static string Upgrade(string name, int level, bool canUpgrade, int cost, int paid,
+        string currentEffect = "", string nextEffect = "")
     {
         if (!canUpgrade)
-            return Title(name) + $"<size=80%>Lv.{level} · <b>MAX</b></size>";
-        // Keep a partial payment on one secondary line so long names still fit.
-        string price = paid > 0 ? $"남은 {cost - paid:N0}원" : $"다음 {cost:N0}원";
-        return Title(name) + $"<size=72%>Lv.{level} → Lv.{level + 1}\n{price}</size>";
+            return Title(name) + $"<size=78%>Lv.{level}  <b>MAX</b></size>\n<size=70%>{currentEffect}</size>";
+        string effect = string.IsNullOrEmpty(currentEffect) ? "" :
+            $"<size=70%>{currentEffect} → {nextEffect}</size>\n";
+        return Title(name) + $"<size=78%>Lv.{level} → Lv.{level + 1}</size>\n" +
+            effect + $"<size=80%><b>{Price(cost, paid)}</b></size>";
     }
 }

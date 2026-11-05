@@ -72,6 +72,8 @@ public class SortingStation : MonoBehaviour
     public int MaxSortingLevel => maxSortingLevel;
 
     public float SortingTime => sortingTime;
+    public float NextSortingTime => CanUpgradeSorting
+        ? Mathf.Max(sortingTime - sortingTimeDecrease, minimumSortingTime) : sortingTime;
 
     public bool CanUpgradeSorting =>
         sortingLevel < maxSortingLevel;

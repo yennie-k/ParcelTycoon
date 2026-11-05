@@ -181,6 +181,7 @@ public class SortingSpeedUpgradeZone : MonoBehaviour
     {
         if (priceText == null || sortingStation == null) return;
         priceText.text = PurchasePadText.Upgrade("분류 속도", sortingStation.SortingLevel,
-            sortingStation.CanUpgradeSorting, CurrentCost, paidAmount);
+            sortingStation.CanUpgradeSorting, CurrentCost, paidAmount,
+            $"{sortingStation.SortingTime:F1}초", $"{sortingStation.NextSortingTime:F1}초");
     }
 }
