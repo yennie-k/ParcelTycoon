@@ -296,6 +296,7 @@ MonoBehaviour:
   secondInboundPurchaseZone: {fileID: 620742497}
   deliveryWorkerHireZone: {fileID: 1395281693}
   inputWorkerHireZone: {fileID: 1847142254}
+  warehouseExpansionPurchaseZone: {fileID: 473666156}
   sortingSpeedUpgradeZone: {fileID: 153720796}
   carryCapacityUpgradeZone: {fileID: 2007357964}
   workerSpeedUpgradeZone: {fileID: 1170691097}
