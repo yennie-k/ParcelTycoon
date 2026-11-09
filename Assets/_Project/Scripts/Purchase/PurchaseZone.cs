@@ -21,6 +21,8 @@ public class PurchaseZone : MonoBehaviour
     private bool paymentRunning;
     private int paidAmount;
     private Coroutine paymentCoroutine;
+    public int PurchaseCost => purchaseCost;
+    public int PaidAmount => paidAmount;
     public bool HasSaveReferences => moneyManager != null && targetObject != null;
 
     public PurchaseSaveData CaptureState()

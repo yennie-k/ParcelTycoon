@@ -1,3 +1,4 @@
+using GoalId = ProgressionManager.GoalId;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -9,7 +10,7 @@ public class GoalUI : MonoBehaviour
 
     private ProgressionManager.GoalId? checkedGoal;
     private TMP_FontAsset checkedFont;
-    private bool supportsKorean;
+    private (int A, int B, int C, int D, int E, int F) checkedProgress;
 
     private Texture2D roundedTexture;
     private Sprite roundedSprite;
@@ -59,26 +60,60 @@ public class GoalUI : MonoBehaviour
     public void RefreshGoal()
     {
         if (!SaveManager.GameplayReady || goalText == null || progressionManager == null) return;
-        ProgressionManager.GoalId goal = progressionManager.CurrentGoal;
-        string message = progressionManager.GetGoalText(goal);
-        // Preserve the existing font. Avoid missing-glyph warnings until a Korean font
-        // (or fallback) is supplied; dynamic fonts may add supported glyphs here.
-        if (checkedGoal != goal || checkedFont != goalText.font)
-        {
-            checkedGoal = goal;
-            checkedFont = goalText.font;
-            supportsKorean = checkedFont != null && checkedFont.HasCharacters(message, out _, true, true);
-        }
-        if (!supportsKorean)
-            message = progressionManager.GetGoalText(goal, false);
-        if (goal == ProgressionManager.GoalId.Complete)
-            message = $"<color=#F5C86C><b>{message}</b></color>";
-        else
-        {
-            if (message.StartsWith("목표: ")) message = message.Substring(4);
-            else if (message.StartsWith("Goal: ")) message = message.Substring(6);
-            message = $"<size=55%><color=#45E0CE>NEXT GOAL</color></size>\n<color=#FFFFFF>{message}</color>";
-        }
-        if (goalText.text != message) goalText.text = message;
+        GoalId goal = progressionManager.CurrentGoal;
+        var progress = ReadProgress(goal);
+        var font = goalText.font;
+        if (checkedGoal == goal && checkedFont == font && checkedProgress.Equals(progress)) return;
+        checkedGoal = goal;
+        checkedFont = font;
+        checkedProgress = progress;
+
+        string title = progressionManager.GetGoalText(goal);
+        if (!Supports(title)) title = progressionManager.GetGoalText(goal, false);
+        if (title.StartsWith("목표: ")) title = title.Substring(4);
+        else if (title.StartsWith("Goal: ")) title = title.Substring(6);
+
+        bool complete = goal == GoalId.Complete;
+        string header = complete ? "GROWTH COMPLETE" : "NEXT GOAL";
+        string color = complete ? "#F5C86C" : "#45E0CE";
+        string text = $"<size=55%><color={color}>{header}</color></size>\n<color=#FFFFFF>{title}</color>";
+        string detail = FormatProgress(goal, progress, true);
+        if (!Supports(detail)) detail = FormatProgress(goal, progress, false);
+        if (detail.Length > 0) text += $"\n<size=65%><color=#DDE7F1>{detail}</color></size>";
+        if (goalText.text != text) goalText.text = text;
     }
+
+    // Probe existing glyphs only. Do not populate or save the shared font atlas here.
+    private bool Supports(string text) => text.Length == 0 ||
+        (checkedFont != null && checkedFont.HasCharacters(text, out _, true, false));
+
+    private (int, int, int, int, int, int) ReadProgress(GoalId goal)
+    {
+        if (goal == GoalId.BuyTwoUpgrades) return (progressionManager.PurchasedUpgradeCount, 0, 0, 0, 0, 0);
+        if (goal == GoalId.AllUpgradesLevel2 || goal == GoalId.AnyUpgradeMax || goal == GoalId.AllUpgradesMax)
+            return progressionManager.UpgradeLevels;
+        var purchase = progressionManager.GetGoalPurchase(goal);
+        return purchase == null ? default : (purchase.PurchaseCost, purchase.PaidAmount, 1, 0, 0, 0);
+    }
+
+    private string FormatProgress(GoalId goal, (int A, int B, int C, int D, int E, int F) p, bool korean)
+    {
+        if (goal == GoalId.BuyTwoUpgrades) return $"{p.A} / {ProgressionManager.RequiredUpgradePurchases}";
+        if (goal == GoalId.AllUpgradesLevel2 || goal == GoalId.AnyUpgradeMax || goal == GoalId.AllUpgradesMax)
+        {
+            bool showMax = goal != GoalId.AllUpgradesLevel2;
+            string sorting = Level(p.A, p.D, showMax);
+            string carry = Level(p.B, p.E, showMax);
+            string worker = Level(p.C, p.F, showMax);
+            return korean ? $"분류 {sorting} · 운반 {carry} · 직원 {worker}" :
+                $"Sort {sorting} / Carry {carry} / Staff {worker}";
+        }
+        if (p.C == 0) return "";
+        string symbol = korean || Supports("₩") ? "₩" : "KRW ";
+        string price = $"{symbol}{Mathf.Max(0, p.A - p.B):N0}";
+        return p.B == 0 ? price : (korean ? "남은 금액 " : "Remaining ") + price;
+    }
+
+    private static string Level(int current, int max, bool showMax) =>
+        !showMax ? $"Lv.{current}" : current >= max ? "MAX" : $"Lv.{current}/{max}";
 }

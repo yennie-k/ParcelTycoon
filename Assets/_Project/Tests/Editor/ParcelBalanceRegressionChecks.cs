@@ -205,7 +205,7 @@ public static class ParcelBalanceRegressionChecks
     private static void CheckMainScene()
     {
         string main = File.ReadAllText("Assets/_Project/Scenes/MainScene.unity");
-        Check(Regex.IsMatch(main, @"^  startingMoney: 0$", RegexOptions.Multiline), "MainScene 신규 재화 0");
+        Check(Regex.IsMatch(main, @"^  startingMoney: 0\r?$", RegexOptions.Multiline), "MainScene 신규 재화 0");
         Match purchase = Regex.Match(main, @"--- !u!114 &473666158\r?\n.*?(?=--- !u!|\z)", RegexOptions.Singleline);
         Check(purchase.Success && purchase.Value.Contains("  purchaseCost: 2500"), "MainScene 창고 가격 2500");
         Check(main.Contains("  warehouseExpansionPurchaseZone: {fileID: 473666156}"), "MainScene 창고 패드 연결");

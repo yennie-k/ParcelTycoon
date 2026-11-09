@@ -153,12 +153,16 @@ public class ProgressionTestWindow : EditorWindow
         var actual = f.manager.CurrentGoal;
         string raw = f.manager.GetGoalText(expected);
         string core = raw.StartsWith("목표: ") ? raw.Substring(4) : raw;
-        string expectedText = expected == ProgressionManager.GoalId.Complete ? core : "NEXT GOAL\n" + core;
+        string heading = expected == ProgressionManager.GoalId.Complete ? "GROWTH COMPLETE" : "NEXT GOAL";
+        string expectedText = heading + "\n" + core;
         string actualText = Regex.Replace(f.text.text, "<[^>]*>", "").Replace("\r", "");
         string english = f.manager.GetGoalText(expected, false);
         if (english.StartsWith("Goal: ")) english = english.Substring(6);
-        string fallback = expected == ProgressionManager.GoalId.Complete ? english : "NEXT GOAL\n" + english;
-        bool ok = actual == expected && (actualText == expectedText || actualText == fallback);
+        string fallback = heading + "\n" + english;
+        string[] rows = actualText.Split('\n');
+        string titleText = string.Join("\n", rows.Take(2));
+        bool ok = actual == expected && (titleText == expectedText || titleText == fallback) &&
+            (expected != ProgressionManager.GoalId.Complete || rows.Length == 2);
         if (ok) passed++; else failed++;
         report += $"\n{(ok ? "PASS" : "FAIL")} [{name}] 예상 ID={expected}, 실제 ID={actual}\n예상 문구: {expectedText}\n실제 문구: {actualText}\n패드: {Pads(f)}\n";
         if (!ok) report += "원인: 목표 ID 또는 실제 GoalUI 문구 불일치 (폰트 지원 포함).\n";
@@ -250,6 +254,67 @@ public class ProgressionTestWindow : EditorWindow
         SortingStatusUIValidation.RunAll();
     }
 
+    private static void ValidateGoalProgress(MonoBehaviour[] scripts, ProgressionManager manager)
+    {
+        var ui = scripts.OfType<GoalUI>().Single();
+        var label = Reference<TMP_Text>(ui, "goalText");
+        var sorting = Reference<SortingStation>(manager, "sortingStation");
+        var carry = Reference<PlayerCarry>(manager, "playerCarry");
+        var worker = Reference<WorkerSpeedUpgradeZone>(manager, "workerSpeedUpgrade");
+        int cases = 0;
+        void Check(ProgressionManager.GoalId goal, params string[] expectedDetails)
+        {
+            ui.RefreshGoal();
+            var rows = Regex.Replace(label.text, "<[^>]*>", "").Split('\n');
+            bool complete = goal == ProgressionManager.GoalId.Complete;
+            string header = complete ? "GROWTH COMPLETE" : "NEXT GOAL";
+            if (manager.CurrentGoal != goal || rows.Length != (complete ? 2 : 3) || rows[0] != header ||
+                (!complete && !expectedDetails.Any(detail => rows[2].Replace("KRW ", "₩") == detail)))
+                throw new Exception($"Unexpected Goal progress for {goal}: {label.text}");
+            Canvas.ForceUpdateCanvases();
+            label.ForceMeshUpdate();
+            if (label.textInfo.lineCount != rows.Length || label.isTextTruncated)
+                throw new Exception($"Goal lines wrapped or truncated: {label.text}");
+            Rect bounds = label.rectTransform.rect;
+            foreach (var mesh in label.textInfo.meshInfo.Take(label.textInfo.materialCount))
+                for (int i = 0; i < mesh.vertexCount; i++)
+                    if (!bounds.Contains((Vector2)mesh.vertices[i]))
+                        throw new Exception($"Goal text mesh outside its rectangle: {goal}");
+            cases++;
+        }
+        void Restore(ProgressionManager.GoalId goal, bool purchased, int paid = 0) =>
+            manager.GetGoalPurchase(goal).RestoreState(new PurchaseSaveData { purchased = purchased, paidAmount = paid });
+
+        Check(ProgressionManager.GoalId.SecondInbound, "₩300");
+        Restore(ProgressionManager.GoalId.SecondInbound, true);
+        Check(ProgressionManager.GoalId.DeliveryWorker, "₩500");
+        Restore(ProgressionManager.GoalId.DeliveryWorker, false, 250);
+        Check(ProgressionManager.GoalId.DeliveryWorker, "남은 금액 ₩250", "Remaining ₩250");
+        Restore(ProgressionManager.GoalId.DeliveryWorker, true);
+        Check(ProgressionManager.GoalId.InputWorker, "₩1,000");
+        Restore(ProgressionManager.GoalId.InputWorker, true);
+        Check(ProgressionManager.GoalId.BuyTwoUpgrades, "0 / 2");
+        sorting.RestoreSortingLevel(2);
+        Check(ProgressionManager.GoalId.BuyTwoUpgrades, "1 / 2");
+        sorting.RestoreSortingLevel(3);
+        Check(ProgressionManager.GoalId.WarehouseExpansion, "₩2,500");
+        Restore(ProgressionManager.GoalId.WarehouseExpansion, false, 750);
+        Check(ProgressionManager.GoalId.WarehouseExpansion, "남은 금액 ₩1,750", "Remaining ₩1,750");
+        Restore(ProgressionManager.GoalId.WarehouseExpansion, true);
+        worker.RestoreWorkerLevel(2);
+        Check(ProgressionManager.GoalId.AllUpgradesLevel2,
+            "분류 Lv.3 · 운반 Lv.1 · 직원 Lv.2", "Sort Lv.3 / Carry Lv.1 / Staff Lv.2");
+        carry.RestoreCarryLevel(2);
+        Check(ProgressionManager.GoalId.AnyUpgradeMax,
+            "분류 Lv.3/4 · 운반 Lv.2/3 · 직원 Lv.2/4", "Sort Lv.3/4 / Carry Lv.2/3 / Staff Lv.2/4");
+        sorting.RestoreSortingLevel(4); carry.RestoreCarryLevel(3);
+        Check(ProgressionManager.GoalId.AllUpgradesMax,
+            "분류 MAX · 운반 MAX · 직원 Lv.2/4", "Sort MAX / Carry MAX / Staff Lv.2/4");
+        worker.RestoreWorkerLevel(4);
+        Check(ProgressionManager.GoalId.Complete);
+        Debug.Log($"GOAL_PROGRESS_PASS: {cases} MainScene states including partial payments, all goals, no wrapping or mesh overflow.");
+    }
+
     private static void ValidateMainAndLegacy()
     {
         var scene = EditorSceneManager.OpenScene("Assets/_Project/Scenes/MainScene.unity", OpenSceneMode.Additive);
@@ -263,6 +328,7 @@ public class ProgressionTestWindow : EditorWindow
                 throw new Exception("MainScene money/warehouse price mismatch");
             if (scripts.OfType<WorkerAI>().Any(w => new SerializedObject(w).FindProperty("rewardPerBox").intValue != 100))
                 throw new Exception("Delivery reward changed");
+            ValidateGoalProgress(scripts, manager);
         }
         finally { EditorSceneManager.CloseScene(scene, true); }
         var root = new GameObject("Legacy warehouse restore test");

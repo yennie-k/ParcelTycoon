@@ -2,6 +2,7 @@ using UnityEngine;
 
 public class ProgressionManager : MonoBehaviour
 {
+    public const int RequiredUpgradePurchases = 2;
     [Header("Progress Targets")]
     [SerializeField] private GameObject secondInbound;
     [SerializeField] private GameObject deliveryWorker;
@@ -78,6 +79,23 @@ public class ProgressionManager : MonoBehaviour
         return korean ? "목표 설정을 확인해 주세요" : "Check goal references";
     }
 
+    public PurchaseZone GetGoalPurchase(GoalId id)
+    {
+        GameObject zone = id switch
+        {
+            GoalId.SecondInbound => secondInboundPurchaseZone,
+            GoalId.DeliveryWorker => deliveryWorkerHireZone,
+            GoalId.InputWorker => inputWorkerHireZone,
+            GoalId.WarehouseExpansion => warehouseExpansionPurchaseZone,
+            _ => null
+        };
+        return zone != null ? zone.GetComponent<PurchaseZone>() : null;
+    }
+
+    public (int Sorting, int Carry, int Worker, int SortingMax, int CarryMax, int WorkerMax) UpgradeLevels =>
+        (sortingStation.SortingLevel, playerCarry.CarryLevel, workerSpeedUpgrade.WorkerSpeedLevel,
+            sortingStation.MaxSortingLevel, playerCarry.MaxCarryLevel, workerSpeedUpgrade.MaxWorkerSpeedLevel);
+
     private bool IsGoalAchieved(GoalId id)
     {
         switch (id)
@@ -86,7 +104,7 @@ public class ProgressionManager : MonoBehaviour
             case GoalId.DeliveryWorker: return deliveryWorker.activeSelf;
             case GoalId.InputWorker: return inputWorker.activeSelf;
             case GoalId.WarehouseExpansion: return warehouseExpansion.activeSelf;
-            case GoalId.BuyTwoUpgrades: return PurchasedUpgradeCount >= 2;
+            case GoalId.BuyTwoUpgrades: return PurchasedUpgradeCount >= RequiredUpgradePurchases;
             case GoalId.AllUpgradesLevel2:
                 return sortingStation.SortingLevel >= 2 && playerCarry.CarryLevel >= 2 && workerSpeedUpgrade.WorkerSpeedLevel >= 2;
             case GoalId.AnyUpgradeMax:
@@ -127,7 +145,7 @@ public class ProgressionManager : MonoBehaviour
         SetZone(sortingSpeedUpgradeZone, inbound && delivery);
         SetZone(workerSpeedUpgradeZone, inbound && delivery && input);
         SetZone(warehouseExpansionPurchaseZone, inbound && delivery && input &&
-            PurchasedUpgradeCount >= 2 && warehouseExpansion != null && !warehouseExpansion.activeSelf);
+            PurchasedUpgradeCount >= RequiredUpgradePurchases && warehouseExpansion != null && !warehouseExpansion.activeSelf);
     }
 
     private void SetZone(
