@@ -10,6 +10,7 @@ public static class PurchasePadText
             case "입고 직원 고용": name = "입고 직원\n고용"; break;
             case "출고 직원 고용": name = "출고 직원\n고용"; break;
             case "플레이어 운반량": name = "플레이어\n운반량"; break;
+            case "직원 운반량": name = "직원\n운반량"; break;
             case "직원 이동 속도": name = "직원 이동\n속도"; break;
         }
         return $"<b>{name}</b>\n";
@@ -17,12 +18,12 @@ public static class PurchasePadText
 
     private static string Price(int cost, int paid)
     {
-        return paid > 0 ? $"남은 금액 ₩{cost - paid:N0}" : $"₩{cost:N0}";
+        return paid > 0 ? $"남은 ₩{cost - paid:N0}" : $"₩{cost:N0}";
     }
 
     public static string Purchase(string name, int cost, int paid)
     {
-        return Title(name) + $"<size=80%><b>{Price(cost, paid)}</b></size>";
+        return Title(name) + $"<size=60%><b>{Price(cost, paid)}</b></size>";
     }
 
     public static string Upgrade(string name, int level, bool canUpgrade, int cost, int paid,
@@ -33,6 +34,6 @@ public static class PurchasePadText
         string effect = string.IsNullOrEmpty(currentEffect) ? "" :
             $"<size=70%>{currentEffect} → {nextEffect}</size>\n";
         return Title(name) + $"<size=78%>Lv.{level} → Lv.{level + 1}</size>\n" +
-            effect + $"<size=80%><b>{Price(cost, paid)}</b></size>";
+            effect + $"<size=60%><b>{Price(cost, paid)}</b></size>";
     }
 }

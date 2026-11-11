@@ -19,6 +19,7 @@ public class SaveManager : MonoBehaviour
     [SerializeField] private CarryCapacityUpgradeZone carryUpgrade;
     [SerializeField] private SortingSpeedUpgradeZone sortingUpgrade;
     [SerializeField] private WorkerSpeedUpgradeZone workerSpeedUpgrade;
+    [SerializeField] private WorkerCarryCapacityUpgradeZone workerCarryUpgrade;
     [SerializeField] private float saveInterval = 0.5f;
 
     [NonSerialized] private SaveFileService files;
@@ -55,6 +56,7 @@ public class SaveManager : MonoBehaviour
                 carryUpgrade.RestoreState(data.carryUpgrade);
                 sortingUpgrade.RestoreState(data.sortingUpgrade);
                 workerSpeedUpgrade.RestoreState(data.workerSpeedUpgrade);
+                workerCarryUpgrade.RestoreState(data.workerCarryUpgrade);
                 moneyManager.RestoreMoney(data.currentMoney);
                 secondInbound.RestoreState(data.secondInbound);
                 warehouseExpansion.RestoreState(data.warehouseExpansion);
@@ -78,10 +80,10 @@ public class SaveManager : MonoBehaviour
     {
         if (moneyManager == null || secondInbound == null || warehouseExpansion == null ||
             inputWorker == null || deliveryWorker == null || progressionManager == null || goalUI == null ||
-            carryUpgrade == null || sortingUpgrade == null || workerSpeedUpgrade == null ||
+            carryUpgrade == null || sortingUpgrade == null || workerSpeedUpgrade == null || workerCarryUpgrade == null ||
             !secondInbound.HasSaveReferences || !warehouseExpansion.HasSaveReferences ||
             !inputWorker.HasSaveReferences || !deliveryWorker.HasSaveReferences ||
-            !carryUpgrade.HasSaveReferences || !sortingUpgrade.HasSaveReferences || !workerSpeedUpgrade.HasSaveReferences)
+            !carryUpgrade.HasSaveReferences || !sortingUpgrade.HasSaveReferences || !workerSpeedUpgrade.HasSaveReferences || !workerCarryUpgrade.HasSaveReferences)
             throw new InvalidOperationException("SaveManager required references are missing; refusing to save incomplete data.");
     }
 
@@ -142,7 +144,8 @@ public class SaveManager : MonoBehaviour
             warehouseExpansion.IsValidSave(data.warehouseExpansion) &&
             inputWorker.IsValidSave(data.inputWorker) && deliveryWorker.IsValidSave(data.deliveryWorker) &&
             carryUpgrade.IsValidSave(data.carryUpgrade) && sortingUpgrade.IsValidSave(data.sortingUpgrade) &&
-            workerSpeedUpgrade.IsValidSave(data.workerSpeedUpgrade);
+            workerSpeedUpgrade.IsValidSave(data.workerSpeedUpgrade) &&
+            workerCarryUpgrade.IsValidSave(data.workerCarryUpgrade);
     }
 
     public void RequestSave()
@@ -174,7 +177,8 @@ public class SaveManager : MonoBehaviour
                 deliveryWorker = deliveryWorker.CaptureState(),
                 carryUpgrade = carryUpgrade.CaptureState(),
                 sortingUpgrade = sortingUpgrade.CaptureState(),
-                workerSpeedUpgrade = workerSpeedUpgrade.CaptureState()
+                workerSpeedUpgrade = workerSpeedUpgrade.CaptureState(),
+                workerCarryUpgrade = workerCarryUpgrade.CaptureState()
             };
             data.progressionStage = !data.secondInbound.purchased ? 1 :
                 !data.deliveryWorker.purchased ? 2 : !data.inputWorker.purchased ? 3 : 4;

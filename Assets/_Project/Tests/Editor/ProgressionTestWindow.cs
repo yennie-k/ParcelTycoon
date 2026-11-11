@@ -77,6 +77,7 @@ public class ProgressionTestWindow : EditorWindow
         public SortingStation sorting;
         public PlayerCarry carry;
         public WorkerSpeedUpgradeZone worker;
+        public WorkerCarryCapacityUpgradeZone workerCarry;
         public GameObject inbound, delivery, input, expansion;
         public GameObject inboundPad, deliveryPad, inputPad, sortingPad, carryPad, workerPad, expansionPad;
     }
@@ -103,6 +104,7 @@ public class ProgressionTestWindow : EditorWindow
         f.sorting = Reference<SortingStation>(f.manager, "sortingStation");
         f.carry = Reference<PlayerCarry>(f.manager, "playerCarry");
         f.worker = Reference<WorkerSpeedUpgradeZone>(f.manager, "workerSpeedUpgrade");
+        f.workerCarry = Reference<WorkerCarryCapacityUpgradeZone>(f.manager, "workerCarryUpgrade");
         if (f.sorting.enabled || f.carry.enabled || f.worker.enabled)
             throw new InvalidOperationException("State-provider components must remain disabled in this test.");
         f.inbound = Reference<GameObject>(f.manager, "secondInbound");
@@ -127,7 +129,7 @@ public class ProgressionTestWindow : EditorWindow
     private static void Reset(Fixture f)
     {
         f.inbound.SetActive(false); f.delivery.SetActive(false); f.input.SetActive(false); f.expansion.SetActive(false);
-        f.sorting.RestoreSortingLevel(1); f.carry.RestoreCarryLevel(1); f.worker.RestoreWorkerLevel(1);
+        f.sorting.RestoreSortingLevel(1); f.carry.RestoreCarryLevel(1); f.worker.RestoreWorkerLevel(1); f.workerCarry.RestoreState(new UpgradeSaveData());
     }
 
     private static void Advance(Fixture f, int index)
@@ -138,9 +140,9 @@ public class ProgressionTestWindow : EditorWindow
             case 3: f.input.SetActive(true); break;
             case 4: f.sorting.RestoreSortingLevel(2); f.carry.RestoreCarryLevel(2); break;
             case 5: f.expansion.SetActive(true); break;
-            case 6: f.worker.RestoreWorkerLevel(2); break;
+            case 6: f.worker.RestoreWorkerLevel(2); f.workerCarry.RestoreState(new UpgradeSaveData { level = 2 }); break;
             case 7: f.carry.RestoreCarryLevel(f.carry.MaxCarryLevel); break;
-            case 8: f.sorting.RestoreSortingLevel(f.sorting.MaxSortingLevel); f.carry.RestoreCarryLevel(f.carry.MaxCarryLevel); f.worker.RestoreWorkerLevel(4); break;
+            case 8: f.sorting.RestoreSortingLevel(f.sorting.MaxSortingLevel); f.carry.RestoreCarryLevel(f.carry.MaxCarryLevel); f.worker.RestoreWorkerLevel(4); f.workerCarry.RestoreState(new UpgradeSaveData { level = 3 }); break;
         }
     }
 
@@ -174,7 +176,8 @@ public class ProgressionTestWindow : EditorWindow
         bool ok = f.inboundPad.activeSelf == (stage == 0) && f.deliveryPad.activeSelf == (stage == 1) &&
             f.inputPad.activeSelf == (stage == 2) && f.sortingPad.activeSelf == (stage >= 2) &&
             f.carryPad.activeSelf == (stage >= 1) && f.workerPad.activeSelf == (stage >= 3) &&
-            f.expansionPad.activeSelf == (stage >= 3 && f.manager.PurchasedUpgradeCount >= 2 && !f.expansion.activeSelf);
+            f.expansionPad.activeSelf == (stage >= 3 && f.manager.PurchasedUpgradeCount >= 2 && !f.expansion.activeSelf) &&
+            f.workerCarry.gameObject.activeSelf == f.expansion.activeSelf;
         if (ok) passed++; else failed++;
         report += $"\n{(ok ? "PASS" : "FAIL")} [{name}] 패드 활성화 계약, 목표 ID={f.manager.CurrentGoal}\n{Pads(f)}\n";
         if (!ok)
@@ -222,7 +225,7 @@ public class ProgressionTestWindow : EditorWindow
         f.sorting.RestoreSortingLevel(3); f.carry.RestoreCarryLevel(2);
         Check(f, "분류/운반 선행 달성 건너뛰기", ProgressionManager.GoalId.AllUpgradesLevel2);
         CheckPads(f, "선행 달성에도 세 업그레이드 유지", 3);
-        f.worker.RestoreWorkerLevel(4); f.sorting.RestoreSortingLevel(4); f.carry.RestoreCarryLevel(3);
+        f.worker.RestoreWorkerLevel(4); f.workerCarry.RestoreState(new UpgradeSaveData { level = 3 }); f.sorting.RestoreSortingLevel(4); f.carry.RestoreCarryLevel(3);
         Check(f, "완료 상태 복원 시 즉시 완료", ProgressionManager.GoalId.Complete);
         f.expansion.SetActive(false);
         Check(f, "MAX지만 창고 미구매", ProgressionManager.GoalId.WarehouseExpansion);
@@ -261,6 +264,7 @@ public class ProgressionTestWindow : EditorWindow
         var sorting = Reference<SortingStation>(manager, "sortingStation");
         var carry = Reference<PlayerCarry>(manager, "playerCarry");
         var worker = Reference<WorkerSpeedUpgradeZone>(manager, "workerSpeedUpgrade");
+        var workerCarry = Reference<WorkerCarryCapacityUpgradeZone>(manager, "workerCarryUpgrade");
         int cases = 0;
         void Check(ProgressionManager.GoalId goal, params string[] expectedDetails)
         {
@@ -268,8 +272,13 @@ public class ProgressionTestWindow : EditorWindow
             var rows = Regex.Replace(label.text, "<[^>]*>", "").Split('\n');
             bool complete = goal == ProgressionManager.GoalId.Complete;
             string header = complete ? "GROWTH COMPLETE" : "NEXT GOAL";
-            if (manager.CurrentGoal != goal || rows.Length != (complete ? 2 : 3) || rows[0] != header ||
-                (!complete && !expectedDetails.Any(detail => rows[2].Replace("KRW ", "₩") == detail)))
+            string koreanTitle = manager.GetGoalText(goal);
+            if (koreanTitle.StartsWith("목표: ")) koreanTitle = koreanTitle.Substring(4);
+            if (rows.Length < 2 || rows[1] != koreanTitle)
+                throw new Exception($"MainScene goal must display Korean: {label.text}");
+            if (manager.CurrentGoal != goal || rows.Length != (complete ? 2 : goal == ProgressionManager.GoalId.AllUpgradesLevel2 ||
+                    goal == ProgressionManager.GoalId.AnyUpgradeMax || goal == ProgressionManager.GoalId.AllUpgradesMax ? 4 : 3) || rows[0] != header ||
+                (!complete && string.Join("\n", rows.Skip(2)) != expectedDetails[0]))
                 throw new Exception($"Unexpected Goal progress for {goal}: {label.text}");
             Canvas.ForceUpdateCanvases();
             label.ForceMeshUpdate();
@@ -303,14 +312,16 @@ public class ProgressionTestWindow : EditorWindow
         Restore(ProgressionManager.GoalId.WarehouseExpansion, true);
         worker.RestoreWorkerLevel(2);
         Check(ProgressionManager.GoalId.AllUpgradesLevel2,
-            "분류 Lv.3 · 운반 Lv.1 · 직원 Lv.2", "Sort Lv.3 / Carry Lv.1 / Staff Lv.2");
+            "분류 속도 Lv.3 · 플레이어 운반량 Lv.1\n직원 이동 속도 Lv.2 · 직원 운반량 Lv.1", "Sorting speed Lv.3 / Player carry Lv.1\nStaff speed Lv.2 / Staff carry Lv.1");
         carry.RestoreCarryLevel(2);
+        workerCarry.RestoreState(new UpgradeSaveData { level = 2 });
         Check(ProgressionManager.GoalId.AnyUpgradeMax,
-            "분류 Lv.3/4 · 운반 Lv.2/3 · 직원 Lv.2/4", "Sort Lv.3/4 / Carry Lv.2/3 / Staff Lv.2/4");
+            "분류 속도 Lv.3/4 · 플레이어 운반량 Lv.2/3\n직원 이동 속도 Lv.2/4 · 직원 운반량 Lv.2/3", "Sorting speed Lv.3/4 / Player carry Lv.2/3\nStaff speed Lv.2/4 / Staff carry Lv.2/3");
         sorting.RestoreSortingLevel(4); carry.RestoreCarryLevel(3);
         Check(ProgressionManager.GoalId.AllUpgradesMax,
-            "분류 MAX · 운반 MAX · 직원 Lv.2/4", "Sort MAX / Carry MAX / Staff Lv.2/4");
+            "분류 속도 MAX · 플레이어 운반량 MAX\n직원 이동 속도 Lv.2/4 · 직원 운반량 Lv.2/3", "Sorting speed MAX / Player carry MAX\nStaff speed Lv.2/4 / Staff carry Lv.2/3");
         worker.RestoreWorkerLevel(4);
+        workerCarry.RestoreState(new UpgradeSaveData { level = 3 });
         Check(ProgressionManager.GoalId.Complete);
         Debug.Log($"GOAL_PROGRESS_PASS: {cases} MainScene states including partial payments, all goals, no wrapping or mesh overflow.");
     }
@@ -350,9 +361,9 @@ public class ProgressionTestWindow : EditorWindow
             if (target.activeSelf || zone.CaptureState().paidAmount != 150) throw new Exception("Old partial amount lost");
             var saved = new SaveData { currentMoney = 1234, warehouseExpansion = partial };
             var restored = JsonUtility.FromJson<SaveData>(JsonUtility.ToJson(saved));
-            if (restored.schemaVersion != 2 || restored.currentMoney != 1234 || restored.warehouseExpansion.paidAmount != 150)
-                throw new Exception("Save v2 JSON roundtrip failed");
-            Debug.Log("LEVELING_SAVE_PASS: MainScene money 0, warehouse 2500, delivery reward 100; old completed and partial purchases preserved; Save v2 JSON roundtrip. No user save accessed.");
+            if (restored.schemaVersion != SaveData.CurrentVersion || restored.currentMoney != 1234 || restored.warehouseExpansion.paidAmount != 150)
+                throw new Exception("Save v3 JSON roundtrip failed");
+            Debug.Log("LEVELING_SAVE_PASS: MainScene money 0, warehouse 2500, delivery reward 100; old completed and partial purchases preserved; Save v3 JSON roundtrip. No user save accessed.");
         }
         finally { DestroyImmediate(root); DestroyImmediate(target); }
     }

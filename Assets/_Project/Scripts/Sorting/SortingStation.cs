@@ -21,11 +21,12 @@ public class SortingStation : MonoBehaviour
 
     [Header("Stack Layout")]
     [SerializeField] private int boxesPerColumn = 5;
-    [SerializeField] private Vector3 inputColumnOffset = new Vector3(0f, 0f, 1.5f);
     [SerializeField] private Vector3 outputColumnOffset = new Vector3(0f, 0f, 1.5f);
 
     [Header("References")]
-    [SerializeField] private Transform inputPoint;
+    [SerializeField] private Transform inputPoint; // Ownership/transfer parent, not a placement origin.
+    [SerializeField] private Transform inputStackAnchorA;
+    [SerializeField] private Transform inputStackAnchorB;
     [SerializeField] private Transform sortingPoint;
     [SerializeField] private Transform outputPoint;
 
@@ -62,6 +63,13 @@ public class SortingStation : MonoBehaviour
         int columnHeight = Mathf.Max(1, boxesPerColumn);
         return point.position + columnOffset * (index / columnHeight) +
             Vector3.up * ((index % columnHeight) * spacing);
+    }
+
+    private Vector3 InputStackPosition(int index)
+    {
+        int height = Mathf.Max(1, boxesPerColumn);
+        Transform anchor = index < height ? inputStackAnchorA : inputStackAnchorB;
+        return anchor.position + Vector3.up * (inputStackSpacing * (index % height));
     }
 
     public bool CanAcceptInput =>
@@ -167,9 +175,10 @@ public class SortingStation : MonoBehaviour
         }
 
         int stackIndex = inputBoxes.Count;
+        if (inputPoint == null || inputStackAnchorA == null ||
+            (stackIndex >= Mathf.Max(1, boxesPerColumn) && inputStackAnchorB == null)) return false;
 
-        Vector3 position =
-            StackPosition(inputPoint, stackIndex, inputStackSpacing, inputColumnOffset);
+        Vector3 position = InputStackPosition(stackIndex);
 
         box.PlaceInInput(
             inputPoint,
@@ -246,12 +255,14 @@ public class SortingStation : MonoBehaviour
                 box.transform.parent != inputPoint
         );
 
+        if (inputStackAnchorA == null || inputStackAnchorB == null) return;
+
         for (int i = 0;
              i < inputBoxes.Count;
              i++)
         {
             Vector3 position =
-                StackPosition(inputPoint, i, inputStackSpacing, inputColumnOffset);
+                InputStackPosition(i);
 
             inputBoxes[i].transform.position =
                 position;

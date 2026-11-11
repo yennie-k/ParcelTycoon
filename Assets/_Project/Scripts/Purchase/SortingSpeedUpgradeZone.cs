@@ -9,8 +9,8 @@ public class SortingSpeedUpgradeZone : MonoBehaviour
     [SerializeField] private int costMultiplier = 2;
 
     [Header("Payment Settings")]
-    [SerializeField] private int paymentPerTick = 50;
-    [SerializeField] private float paymentInterval = 0.1f;
+    [SerializeField] private int paymentPerTick = 100;
+    [SerializeField] private float paymentInterval = 0.2f;
 
     [Header("References")]
     [SerializeField] private MoneyManager moneyManager;

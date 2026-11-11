@@ -59,9 +59,104 @@ public static class SortingStatusUIValidation
                     effectData.FindProperty("outputCapacityText").objectReferenceValue == null,
                     "capacity effect cannot overwrite status labels");
             }
+            SortingZone plate = null;
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                plate = root.GetComponentInChildren<SortingZone>(true);
+                if (plate != null) break;
+            }
+            Check(plate != null, "MainScene input plate");
+            ValidateStacks(station, plate.transform);
             Debug.Log("SORTING_SCENE_PASS: existing large labels connected, one controller, no StatusCanvas, no competing label writer.");
         }
         finally { if (opened) EditorSceneManager.CloseScene(scene, true); }
+    }
+
+    private static void ValidateStacks(SortingStation source, Transform plate)
+    {
+        var root = new GameObject("Isolated stack layout test");
+        try
+        {
+            var station = root.AddComponent<SortingStation>();
+            EditorUtility.CopySerialized(source, station);
+            station.enabled = false;
+            var settings = new SerializedObject(source);
+            Transform Point(string field)
+            {
+                var original = (Transform)settings.FindProperty(field).objectReferenceValue;
+                var point = new GameObject(field).transform;
+                point.SetParent(root.transform);
+                point.SetPositionAndRotation(original.position, original.rotation);
+                Assign(station, field, point);
+                return point;
+            }
+            var input = Point("inputPoint");
+            var anchorA = Point("inputStackAnchorA");
+            var anchorB = Point("inputStackAnchorB");
+            var output = Point("outputPoint");
+            var sorting = Point("sortingPoint");
+            var boxes = new List<ParcelBox>();
+            ParcelBox NewBox()
+            {
+                var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Prefabs/ParcelBox.prefab");
+                var go = UnityEngine.Object.Instantiate(prefab, root.transform);
+                return go.GetComponent<ParcelBox>();
+            }
+            void CheckInputs()
+            {
+                Check(station.InputCount == boxes.Count, "input queue count");
+                for (int i = 0; i < boxes.Count; i++)
+                {
+                    Vector3 expected = (i < 5 ? anchorA : anchorB).position + Vector3.up * ((i % 5) * 1.05f);
+                    Check(Vector3.Distance(expected, boxes[i].transform.position) < 0.001f, "input reindex " + i);
+                }
+            }
+            station.SetStorageCapacity(10, 10);
+            for (int i = 0; i < 10; i++)
+            {
+                var box = NewBox();
+                Check(station.TryAddInputBox(box), "input acceptance " + i);
+                boxes.Add(box);
+                CheckInputs();
+            }
+            Bounds surface = plate.GetComponent<Renderer>().bounds;
+            Debug.Log($"INPUT_ANCHOR_BOUNDS: plate renderer={surface.ToString("F5")}; trigger={plate.GetComponent<Collider>().bounds.ToString("F5")}; A={anchorA.position:F5}; B={anchorB.position:F5}");
+            foreach (var box in boxes)
+            {
+                Bounds bounds = box.GetComponent<Renderer>().bounds;
+                Check(bounds.min.x >= surface.min.x - 0.001f && bounds.max.x <= surface.max.x + 0.001f &&
+                    bounds.min.z >= surface.min.z - 0.001f && bounds.max.z <= surface.max.z + 0.001f, "whole box horizontal footprint on plate");
+            }
+            foreach (int index in new[] { 0, 5 })
+                Check(Mathf.Abs(boxes[index].GetComponent<Renderer>().bounds.min.y - surface.max.y) < 0.001f,
+                    "first box bottom touches rendered plate surface");
+            boxes[0].PlaceForSorting(sorting);
+            boxes.RemoveAt(0);
+            station.SetStorageCapacity(10, 10);
+            CheckInputs();
+            boxes[2].transform.SetParent(root.transform);
+            boxes.RemoveAt(2);
+            station.SetStorageCapacity(10, 10);
+            CheckInputs();
+            input.rotation *= Quaternion.Euler(0, 90, 0);
+            station.SetStorageCapacity(10, 10);
+            CheckInputs();
+
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            var current = typeof(SortingStation).GetField("currentBox", flags);
+            var finish = typeof(SortingStation).GetMethod("SortCurrentBox", flags);
+            for (int i = 0; i < 10; i++)
+            {
+                var box = NewBox();
+                current.SetValue(station, box);
+                var routine = (IEnumerator)finish.Invoke(station, null);
+                routine.MoveNext(); routine.MoveNext();
+                Vector3 expected = output.position + Vector3.up * ((i % 5) * 1.05f) + Vector3.forward * (i / 5 * 1.5f);
+                Check(Vector3.Distance(expected, box.transform.position) < 0.001f, "unchanged output layout " + i);
+            }
+            Debug.Log("INPUT_STACK_PASS: 1–10, both anchor stacks on actual renderer bounds, sorting/removal reindex, local rotation, unchanged output.");
+        }
+        finally { UnityEngine.Object.DestroyImmediate(root); }
     }
 
     [MenuItem("Tools/ParcelTycoon/Validate Sorting Status UI")]
@@ -72,7 +167,7 @@ public static class SortingStatusUIValidation
         try
         {
             var station = root.AddComponent<SortingStation>(); station.enabled = false;
-            foreach (string field in new[] { "inputPoint", "sortingPoint", "outputPoint" })
+            foreach (string field in new[] { "inputPoint", "inputStackAnchorA", "inputStackAnchorB", "sortingPoint", "outputPoint" })
             {
                 var point = new GameObject(field); point.transform.SetParent(root.transform);
                 Assign(station, field, point.transform);

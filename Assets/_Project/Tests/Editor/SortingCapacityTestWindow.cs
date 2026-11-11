@@ -161,16 +161,23 @@ public class SortingCapacityTestWindow : EditorWindow
 
     private void CheckLayout(SortingStation station)
     {
-        bool valid = CheckPoint(Point(station, "InputPoint")) && CheckPoint(Point(station, "OutputPoint"));
-        result = valid ? "PASS: 두 열(열당 5개, 높이 간격 1.05, Z 간격 1.5) 배치 확인." : "FAIL: 배치가 예상과 다릅니다. 다음 프레임 이후 다시 검사하세요.";
+        bool valid = CheckPoint(station, Point(station, "InputPoint"), true) && CheckPoint(station, Point(station, "OutputPoint"), false);
+        result = valid ? "PASS: 두 열(열당 5개, 높이 간격 1.05, 입력 좌우 / 출력 Z 간격 1.5) 배치 확인." : "FAIL: 배치가 예상과 다릅니다. 다음 프레임 이후 다시 검사하세요.";
     }
 
-    private static bool CheckPoint(Transform point)
+    private static bool CheckPoint(SortingStation station, Transform point, bool input)
     {
-        var boxes = point.GetComponentsInChildren<ParcelBox>().Where(b => b.transform.parent == point).OrderBy(b => b.transform.position.z).ThenBy(b => b.transform.position.y).ToArray();
+        var settings = new SerializedObject(station);
+        var a = (Transform)settings.FindProperty("inputStackAnchorA").objectReferenceValue;
+        var anchorB = (Transform)settings.FindProperty("inputStackAnchorB").objectReferenceValue;
+        Vector3 origin = input ? a.position : point.position;
+        Vector3 offset = input ? anchorB.position - a.position : Vector3.forward * 1.5f;
+        var boxes = point.GetComponentsInChildren<ParcelBox>().Where(b => b.transform.parent == point)
+            .OrderBy(b => Mathf.RoundToInt(Vector3.Dot(b.transform.position - origin, offset) / offset.sqrMagnitude))
+            .ThenBy(b => b.transform.position.y).ToArray();
         for (int i = 0; i < boxes.Length; i++)
         {
-            Vector3 expected = point.position + Vector3.up * ((i % 5) * 1.05f) + new Vector3(0, 0, (i / 5) * 1.5f);
+            Vector3 expected = origin + Vector3.up * ((i % 5) * 1.05f) + offset * (i / 5);
             if (Vector3.Distance(expected, boxes[i].transform.position) > 0.01f) return false;
         }
         return boxes.Length <= 10;

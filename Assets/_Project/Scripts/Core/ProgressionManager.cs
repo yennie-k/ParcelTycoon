@@ -13,6 +13,7 @@ public class ProgressionManager : MonoBehaviour
     [SerializeField] private SortingStation sortingStation;
     [SerializeField] private PlayerCarry playerCarry;
     [SerializeField] private WorkerSpeedUpgradeZone workerSpeedUpgrade;
+    [SerializeField] private WorkerCarryCapacityUpgradeZone workerCarryUpgrade;
 
     [Header("Purchase Zones")]
     [SerializeField] private GameObject secondInboundPurchaseZone;
@@ -62,7 +63,7 @@ public class ProgressionManager : MonoBehaviour
         {
             if (!SaveManager.GameplayReady) return GoalId.Loading;
             if (secondInbound == null || deliveryWorker == null || inputWorker == null ||
-                warehouseExpansion == null || sortingStation == null || playerCarry == null || workerSpeedUpgrade == null)
+                warehouseExpansion == null || sortingStation == null || playerCarry == null || workerSpeedUpgrade == null || workerCarryUpgrade == null)
                 return GoalId.ConfigurationMissing;
             foreach (GoalDefinition goal in Goals)
                 if (!IsGoalAchieved(goal.Id)) return goal.Id;
@@ -92,9 +93,10 @@ public class ProgressionManager : MonoBehaviour
         return zone != null ? zone.GetComponent<PurchaseZone>() : null;
     }
 
-    public (int Sorting, int Carry, int Worker, int SortingMax, int CarryMax, int WorkerMax) UpgradeLevels =>
+    public (int Sorting, int Carry, int Worker, int SortingMax, int CarryMax, int WorkerMax, int WorkerCarry, int WorkerCarryMax) UpgradeLevels =>
         (sortingStation.SortingLevel, playerCarry.CarryLevel, workerSpeedUpgrade.WorkerSpeedLevel,
-            sortingStation.MaxSortingLevel, playerCarry.MaxCarryLevel, workerSpeedUpgrade.MaxWorkerSpeedLevel);
+            sortingStation.MaxSortingLevel, playerCarry.MaxCarryLevel, workerSpeedUpgrade.MaxWorkerSpeedLevel,
+            workerCarryUpgrade.CurrentLevel, workerCarryUpgrade.MaxLevel);
 
     private bool IsGoalAchieved(GoalId id)
     {
@@ -106,11 +108,12 @@ public class ProgressionManager : MonoBehaviour
             case GoalId.WarehouseExpansion: return warehouseExpansion.activeSelf;
             case GoalId.BuyTwoUpgrades: return PurchasedUpgradeCount >= RequiredUpgradePurchases;
             case GoalId.AllUpgradesLevel2:
-                return sortingStation.SortingLevel >= 2 && playerCarry.CarryLevel >= 2 && workerSpeedUpgrade.WorkerSpeedLevel >= 2;
+                return sortingStation.SortingLevel >= 2 && playerCarry.CarryLevel >= 2 && workerSpeedUpgrade.WorkerSpeedLevel >= 2 &&
+                    workerCarryUpgrade.CurrentLevel >= 2;
             case GoalId.AnyUpgradeMax:
-                return !sortingStation.CanUpgradeSorting || !playerCarry.CanUpgradeCarry || !workerSpeedUpgrade.CanUpgrade;
+                return !sortingStation.CanUpgradeSorting || !playerCarry.CanUpgradeCarry || !workerSpeedUpgrade.CanUpgrade || !workerCarryUpgrade.CanUpgrade;
             case GoalId.AllUpgradesMax:
-                return !sortingStation.CanUpgradeSorting && !playerCarry.CanUpgradeCarry && !workerSpeedUpgrade.CanUpgrade;
+                return !sortingStation.CanUpgradeSorting && !playerCarry.CanUpgradeCarry && !workerSpeedUpgrade.CanUpgrade && !workerCarryUpgrade.CanUpgrade;
             default: return false;
         }
     }
@@ -125,7 +128,7 @@ public class ProgressionManager : MonoBehaviour
         RefreshProgression();
     }
 
-    // Derived from completed levels, never from partial payments or an extra save field.
+    // Pre-expansion upgrades only: staff carry must not count toward unlocking its own prerequisite.
     public int PurchasedUpgradeCount =>
         (sortingStation == null ? 0 : Mathf.Max(0, sortingStation.SortingLevel - 1)) +
         (playerCarry == null ? 0 : Mathf.Max(0, playerCarry.CarryLevel - 1)) +
@@ -144,6 +147,8 @@ public class ProgressionManager : MonoBehaviour
         SetZone(carryCapacityUpgradeZone, inbound);
         SetZone(sortingSpeedUpgradeZone, inbound && delivery);
         SetZone(workerSpeedUpgradeZone, inbound && delivery && input);
+        SetZone(workerCarryUpgrade != null ? workerCarryUpgrade.gameObject : null,
+            warehouseExpansion != null && warehouseExpansion.activeSelf);
         SetZone(warehouseExpansionPurchaseZone, inbound && delivery && input &&
             PurchasedUpgradeCount >= RequiredUpgradePurchases && warehouseExpansion != null && !warehouseExpansion.activeSelf);
     }

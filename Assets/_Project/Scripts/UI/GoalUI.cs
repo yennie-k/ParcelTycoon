@@ -10,7 +10,7 @@ public class GoalUI : MonoBehaviour
 
     private ProgressionManager.GoalId? checkedGoal;
     private TMP_FontAsset checkedFont;
-    private (int A, int B, int C, int D, int E, int F) checkedProgress;
+    private (int A, int B, int C, int D, int E, int F, int G, int H) checkedProgress;
 
     private Texture2D roundedTexture;
     private Sprite roundedSprite;
@@ -87,16 +87,16 @@ public class GoalUI : MonoBehaviour
     private bool Supports(string text) => text.Length == 0 ||
         (checkedFont != null && checkedFont.HasCharacters(text, out _, true, false));
 
-    private (int, int, int, int, int, int) ReadProgress(GoalId goal)
+    private (int, int, int, int, int, int, int, int) ReadProgress(GoalId goal)
     {
-        if (goal == GoalId.BuyTwoUpgrades) return (progressionManager.PurchasedUpgradeCount, 0, 0, 0, 0, 0);
+        if (goal == GoalId.BuyTwoUpgrades) return (progressionManager.PurchasedUpgradeCount, 0, 0, 0, 0, 0, 0, 0);
         if (goal == GoalId.AllUpgradesLevel2 || goal == GoalId.AnyUpgradeMax || goal == GoalId.AllUpgradesMax)
             return progressionManager.UpgradeLevels;
         var purchase = progressionManager.GetGoalPurchase(goal);
-        return purchase == null ? default : (purchase.PurchaseCost, purchase.PaidAmount, 1, 0, 0, 0);
+        return purchase == null ? default : (purchase.PurchaseCost, purchase.PaidAmount, 1, 0, 0, 0, 0, 0);
     }
 
-    private string FormatProgress(GoalId goal, (int A, int B, int C, int D, int E, int F) p, bool korean)
+    private string FormatProgress(GoalId goal, (int A, int B, int C, int D, int E, int F, int G, int H) p, bool korean)
     {
         if (goal == GoalId.BuyTwoUpgrades) return $"{p.A} / {ProgressionManager.RequiredUpgradePurchases}";
         if (goal == GoalId.AllUpgradesLevel2 || goal == GoalId.AnyUpgradeMax || goal == GoalId.AllUpgradesMax)
@@ -105,8 +105,8 @@ public class GoalUI : MonoBehaviour
             string sorting = Level(p.A, p.D, showMax);
             string carry = Level(p.B, p.E, showMax);
             string worker = Level(p.C, p.F, showMax);
-            return korean ? $"분류 {sorting} · 운반 {carry} · 직원 {worker}" :
-                $"Sort {sorting} / Carry {carry} / Staff {worker}";
+            return korean ? $"분류 속도 {sorting} · 플레이어 운반량 {carry}\n직원 이동 속도 {worker} · 직원 운반량 {Level(p.G, p.H, showMax)}" :
+                $"Sorting speed {sorting} / Player carry {carry}\nStaff speed {worker} / Staff carry {Level(p.G, p.H, showMax)}";
         }
         if (p.C == 0) return "";
         string symbol = korean || Supports("₩") ? "₩" : "KRW ";

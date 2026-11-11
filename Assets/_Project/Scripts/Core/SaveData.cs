@@ -1,10 +1,10 @@
 using System;
 
-// Version 2 adds upgrade levels and payment progress without changing version-1 purchases.
+// Version 3 adds the shared worker carry upgrade without changing existing purchases.
 [Serializable]
 public class SaveData
 {
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
     public int schemaVersion = CurrentVersion;
     public int currentMoney;
     public int progressionStage;
@@ -15,6 +15,7 @@ public class SaveData
     public UpgradeSaveData carryUpgrade;
     public UpgradeSaveData sortingUpgrade;
     public UpgradeSaveData workerSpeedUpgrade;
+    public UpgradeSaveData workerCarryUpgrade;
 
     public void Migrate()
     {
@@ -24,6 +25,11 @@ public class SaveData
             if (carryUpgrade == null) carryUpgrade = new UpgradeSaveData();
             if (sortingUpgrade == null) sortingUpgrade = new UpgradeSaveData();
             if (workerSpeedUpgrade == null) workerSpeedUpgrade = new UpgradeSaveData();
+            schemaVersion = 2;
+        }
+        if (schemaVersion == 2)
+        {
+            workerCarryUpgrade = new UpgradeSaveData();
             schemaVersion = CurrentVersion;
         }
     }

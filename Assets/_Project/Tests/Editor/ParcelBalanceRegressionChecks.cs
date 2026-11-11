@@ -1,4 +1,6 @@
 using System;
+using System.Collections;
+using System.Reflection;
 using System.IO;
 using System.Text.RegularExpressions;
 using TMPro;
@@ -67,9 +69,11 @@ public static class ParcelBalanceRegressionChecks
             var sorting = Component<SortingStation>(root, "Sorting");
             var carry = Component<PlayerCarry>(root, "Carry");
             var worker = Component<WorkerSpeedUpgradeZone>(root, "Worker Upgrade");
+            var staffCarry = Component<WorkerCarryCapacityUpgradeZone>(root, "Staff Carry Upgrade");
             var inputAI = Component<InputWorkerAI>(root, "Input AI");
             var deliveryAI = Component<WorkerAI>(root, "Delivery AI");
             Set(worker, "inputWorker", inputAI); Set(worker, "deliveryWorker", deliveryAI);
+            Set(staffCarry, "inputWorker", inputAI); Set(staffCarry, "deliveryWorker", deliveryAI);
             var carryUpgrade = Component<CarryCapacityUpgradeZone>(root, "Carry Upgrade");
             var sortingUpgrade = Component<SortingSpeedUpgradeZone>(root, "Sorting Upgrade");
             Set(carryUpgrade, "playerCarry", carry); Set(sortingUpgrade, "sortingStation", sorting);
@@ -79,6 +83,7 @@ public static class ParcelBalanceRegressionChecks
             Set(manager, "secondInbound", inbound); Set(manager, "inputWorker", input); Set(manager, "deliveryWorker", delivery);
             Set(manager, "warehouseExpansion", expansion); Set(manager, "sortingStation", sorting);
             Set(manager, "playerCarry", carry); Set(manager, "workerSpeedUpgrade", worker);
+            Set(manager, "workerCarryUpgrade", staffCarry);
             string[] fields = { "secondInboundPurchaseZone", "deliveryWorkerHireZone", "inputWorkerHireZone",
                 "sortingSpeedUpgradeZone", "carryCapacityUpgradeZone", "workerSpeedUpgradeZone", "warehouseExpansionPurchaseZone" };
             var pads = new GameObject[fields.Length];
@@ -99,6 +104,10 @@ public static class ParcelBalanceRegressionChecks
             money.Initialize(); Check(money.CurrentMoney == 0, "MoneyManager 신규 기본 재화 0");
             money.RestoreMoney(4321); Check(money.CurrentMoney == 4321, "기존 재화 복원 유지");
             goal(ProgressionManager.GoalId.SecondInbound); checkPads(0, false);
+            Check(!staffCarry.gameObject.activeSelf, "직원 운반량은 창고 확장 전 잠김");
+            staffCarry.RestoreState(new UpgradeSaveData { level = 3 });
+            Check(manager.PurchasedUpgradeCount == 0, "직원 운반량은 창고 해금 구매 횟수에 미포함");
+            staffCarry.RestoreState(new UpgradeSaveData());
             inbound.SetActive(true); goal(ProgressionManager.GoalId.DeliveryWorker); checkPads(1, false);
             carry.RestoreCarryLevel(3); checkPads(1, false); // Two early upgrades cannot bypass automation.
             carry.RestoreCarryLevel(1);
@@ -110,9 +119,14 @@ public static class ParcelBalanceRegressionChecks
             Check(manager.PurchasedUpgradeCount == 2, "다른 종류 2회 구매 계산");
             goal(ProgressionManager.GoalId.WarehouseExpansion); checkPads(3, true);
             expansion.SetActive(true); goal(ProgressionManager.GoalId.AllUpgradesLevel2); checkPads(3, false);
-            worker.RestoreWorkerLevel(2); goal(ProgressionManager.GoalId.AnyUpgradeMax);
-            carry.RestoreCarryLevel(3); goal(ProgressionManager.GoalId.AllUpgradesMax);
-            sorting.RestoreSortingLevel(4); worker.RestoreWorkerLevel(4); goal(ProgressionManager.GoalId.Complete);
+            Check(staffCarry.gameObject.activeSelf, "창고 확장 후 직원 운반량 해금");
+            worker.RestoreWorkerLevel(2); goal(ProgressionManager.GoalId.AllUpgradesLevel2);
+            staffCarry.RestoreState(new UpgradeSaveData { level = 2 }); goal(ProgressionManager.GoalId.AnyUpgradeMax);
+            staffCarry.RestoreState(new UpgradeSaveData { level = 3 }); goal(ProgressionManager.GoalId.AllUpgradesMax);
+            staffCarry.RestoreState(new UpgradeSaveData { level = 2 });
+            carry.RestoreCarryLevel(3); sorting.RestoreSortingLevel(4); worker.RestoreWorkerLevel(4);
+            goal(ProgressionManager.GoalId.AllUpgradesMax);
+            staffCarry.RestoreState(new UpgradeSaveData { level = 3 }); goal(ProgressionManager.GoalId.Complete);
             expansion.SetActive(false); goal(ProgressionManager.GoalId.WarehouseExpansion);
             expansion.SetActive(true);
             sorting.RestoreSortingLevel(1); carry.RestoreCarryLevel(1); worker.RestoreWorkerLevel(1);
@@ -153,18 +167,20 @@ public static class ParcelBalanceRegressionChecks
 
             Func<SaveData, bool> valid = data => data.currentMoney >= 0 && purchase.IsValidSave(data.warehouseExpansion) &&
                 purchase.IsValidSave(data.secondInbound) && purchase.IsValidSave(data.inputWorker) && purchase.IsValidSave(data.deliveryWorker) &&
-                carryUpgrade.IsValidSave(data.carryUpgrade) && sortingUpgrade.IsValidSave(data.sortingUpgrade) && worker.IsValidSave(data.workerSpeedUpgrade);
+                carryUpgrade.IsValidSave(data.carryUpgrade) && sortingUpgrade.IsValidSave(data.sortingUpgrade) && worker.IsValidSave(data.workerSpeedUpgrade) &&
+                staffCarry.IsValidSave(data.workerCarryUpgrade);
             directory = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "ParcelBalance-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(directory);
             var service = new SaveFileService(directory);
-            var dataV2 = new SaveData { currentMoney = 4321, secondInbound = new PurchaseSaveData { purchased = true },
+            var dataV2 = new SaveData { schemaVersion = 2, currentMoney = 4321, secondInbound = new PurchaseSaveData { purchased = true },
                 inputWorker = new PurchaseSaveData { purchased = true }, deliveryWorker = new PurchaseSaveData { purchased = true },
                 warehouseExpansion = new PurchaseSaveData { paidAmount = 250 },
                 carryUpgrade = new UpgradeSaveData { level = 2, paidAmount = 100 },
                 sortingUpgrade = new UpgradeSaveData { level = 3, paidAmount = 50 },
                 workerSpeedUpgrade = new UpgradeSaveData { level = 2, paidAmount = 150 } };
             service.Write(dataV2); SaveData loaded = service.Load(valid);
-            Check(loaded.currentMoney == 4321 && loaded.warehouseExpansion.paidAmount == 250 && loaded.carryUpgrade.paidAmount == 100 &&
+            Check(loaded.schemaVersion == 3 && loaded.workerCarryUpgrade.level == 1 && loaded.workerCarryUpgrade.paidAmount == 0 &&
+                loaded.currentMoney == 4321 && loaded.warehouseExpansion.paidAmount == 250 && loaded.carryUpgrade.paidAmount == 100 &&
                 loaded.sortingUpgrade.level == 3 && loaded.workerSpeedUpgrade.level == 2, "v2 재화/구매/레벨/부분 결제 왕복");
             purchase.RestoreState(loaded.warehouseExpansion); carryUpgrade.RestoreState(loaded.carryUpgrade);
             sortingUpgrade.RestoreState(loaded.sortingUpgrade); worker.RestoreState(loaded.workerSpeedUpgrade);
@@ -183,8 +199,8 @@ public static class ParcelBalanceRegressionChecks
                 "\"warehouseExpansion\":{\"purchased\":true,\"paidAmount\":0},\"inputWorker\":{\"purchased\":true,\"paidAmount\":0},\"deliveryWorker\":{\"purchased\":true,\"paidAmount\":0}}";
             File.WriteAllText(service.FilePath, v1);
             var legacy = new SaveFileService(directory); SaveData migrated = legacy.Load(valid);
-            Check(migrated.schemaVersion == 2 && migrated.currentMoney == 7654 && migrated.warehouseExpansion.purchased &&
-                migrated.carryUpgrade.level == 1 && migrated.sortingUpgrade.level == 1 && migrated.workerSpeedUpgrade.level == 1, "v1 → v2 신규 업그레이드 기본값");
+            Check(migrated.schemaVersion == 3 && migrated.workerCarryUpgrade.level == 1 && migrated.workerCarryUpgrade.paidAmount == 0 && migrated.currentMoney == 7654 && migrated.warehouseExpansion.purchased &&
+                migrated.carryUpgrade.level == 1 && migrated.sortingUpgrade.level == 1 && migrated.workerSpeedUpgrade.level == 1, "v1 → v3 신규 업그레이드 기본값");
             legacy.Write(migrated);
             Check(File.ReadAllText(service.FilePath + ".v1.bak") == v1 && new SaveFileService(directory).Load(valid).currentMoney == 7654,
                 "v1 원본 백업 및 변환 후 재로드");
@@ -192,6 +208,50 @@ public static class ParcelBalanceRegressionChecks
             bool refused = false;
             try { new SaveFileService(directory).Load(valid); } catch (InvalidDataException) { refused = true; }
             Check(refused && File.ReadAllText(service.FilePath) == incompleteV2, "본 파일/백업 손상 시 원본 보존");
+            loaded.workerCarryUpgrade = new UpgradeSaveData { level = 2, paidAmount = 650 };
+            service.Write(loaded);
+            var v3 = service.Load(valid);
+            staffCarry.RestoreState(v3.workerCarryUpgrade);
+            Check(staffCarry.CurrentLevel == 2 && staffCarry.CurrentCost == 4000 &&
+                staffCarry.CaptureState().paidAmount == 650 && inputAI.MaxCarryCount == 2 && deliveryAI.MaxCarryCount == 2,
+                "v3 양 직원 능력치와 부분 결제 복원");
+            v3.workerCarryUpgrade = new UpgradeSaveData { level = 3 };
+            service.Write(v3); staffCarry.RestoreState(service.Load(valid).workerCarryUpgrade);
+            Check(!staffCarry.CanUpgrade && inputAI.MaxCarryCount == 3 && deliveryAI.MaxCarryCount == 3, "v3 MAX 복원");
+            string incompleteV3 = JsonUtility.ToJson(v3).Replace("\"workerCarryUpgrade\":{\"level\":3,\"paidAmount\":0}", "\"workerCarryUpgrade\":{\"level\":3}");
+            File.WriteAllText(service.FilePath, incompleteV3);
+            Check(service.Load(valid).workerCarryUpgrade.level == 2, "불완전한 v3 직원 운반량 → 정상 백업 복구");
+            string future = JsonUtility.ToJson(v3).Replace("\"schemaVersion\":3", "\"schemaVersion\":4");
+            File.WriteAllText(service.FilePath, future);
+            bool futureRefused = false;
+            try { service.Load(valid); } catch (NotSupportedException) { futureRefused = true; }
+            Check(futureRefused && File.ReadAllText(service.FilePath) == future, "미래 버전과 정상 백업 보호");
+            // Fresh-game balances use only the two real ₩100 reward sources.
+            var directDelivery = Component<DeliveryZone>(root, "Player delivery");
+            int playerReward = new SerializedObject(directDelivery).FindProperty("rewardPerBox").intValue;
+            int workerReward = new SerializedObject(deliveryAI).FindProperty("rewardPerBox").intValue;
+            Check(playerReward == 100 && workerReward == 100, "신규 게임 기본 출고 보상 ₩100");
+            foreach (int price in new[] { 300, 500, 1000, 2500 })
+            {
+                SetInt(purchase, "purchaseCost", price);
+                purchase.RestoreState(new PurchaseSaveData());
+                CheckPayments(money, purchase, "PayForPurchase", price, () => purchase.CaptureState().purchased);
+            }
+            carryUpgrade.RestoreState(new UpgradeSaveData());
+            CheckPayments(money, carryUpgrade, "PayForUpgrade", 800, () => carry.CarryLevel == 2);
+            CheckPayments(money, carryUpgrade, "PayForUpgrade", 1600, () => carry.CarryLevel == 3);
+            sortingUpgrade.RestoreState(new UpgradeSaveData());
+            CheckPayments(money, sortingUpgrade, "PayForUpgrade", 500, () => sorting.SortingLevel == 2);
+            CheckPayments(money, sortingUpgrade, "PayForUpgrade", 1000, () => sorting.SortingLevel == 3);
+            CheckPayments(money, sortingUpgrade, "PayForUpgrade", 2000, () => sorting.SortingLevel == 4);
+            worker.RestoreState(new UpgradeSaveData());
+            CheckPayments(money, worker, "PayForUpgrade", 1000, () => worker.WorkerSpeedLevel == 2);
+            CheckPayments(money, worker, "PayForUpgrade", 2000, () => worker.WorkerSpeedLevel == 3);
+            CheckPayments(money, worker, "PayForUpgrade", 4000, () => worker.WorkerSpeedLevel == 4);
+            staffCarry.RestoreState(new UpgradeSaveData());
+            CheckPayments(money, staffCarry, "PayForUpgrade", 2000, () => staffCarry.CurrentLevel == 2);
+            CheckPayments(money, staffCarry, "PayForUpgrade", 4000, () => staffCarry.CurrentLevel == 3);
+            Debug.Log("ECONOMY_100_PASS: all 8 purchase pads and 14 price tiers retain whole ₩100 balances.");
             CheckMainScene();
             Debug.Log("ParcelTycoon 레벨링 검사 완료: PASS " + passed + " / FAIL 0. 실제 저장 경로 접근 없음.");
         }
@@ -202,6 +262,30 @@ public static class ParcelBalanceRegressionChecks
         }
     }
 
+    private static void CheckPayments(MoneyManager money, MonoBehaviour zone, string method, int price, Func<bool> complete)
+    {
+        Set(zone, "moneyManager", money);
+        var data = new SerializedObject(zone);
+        Check(data.FindProperty("paymentPerTick").intValue == 100 &&
+            Mathf.Approximately(data.FindProperty("paymentInterval").floatValue, 0.2f), $"{zone.name} 기본 결제 단위");
+        money.RestoreMoney(0);
+        var routine = (IEnumerator)zone.GetType().GetMethod(method, BindingFlags.Instance | BindingFlags.NonPublic)
+            .Invoke(zone, null);
+        bool valid = routine.MoveNext() && money.CurrentMoney == 0 && !complete();
+        for (int paid = 0; valid && paid < price; paid += 100)
+        {
+            bool last = paid + 100 == price;
+            money.AddMoney(100);
+            if (last) { money.AddMoney(100); money.AddMoney(100); }
+            int before = money.CurrentMoney;
+            bool continuing = routine.MoveNext();
+            valid = before - money.CurrentMoney == 100 && money.CurrentMoney % 100 == 0 &&
+                continuing == !last && complete() == last;
+        }
+        (routine as IDisposable)?.Dispose();
+        Check(valid && money.CurrentMoney == 200, $"{zone.name} ₩{price:N0} 실제 100원씩 결제 후 ₩200 잔액");
+    }
+
     private static void CheckMainScene()
     {
         string main = File.ReadAllText("Assets/_Project/Scenes/MainScene.unity");
@@ -209,5 +293,10 @@ public static class ParcelBalanceRegressionChecks
         Match purchase = Regex.Match(main, @"--- !u!114 &473666158\r?\n.*?(?=--- !u!|\z)", RegexOptions.Singleline);
         Check(purchase.Success && purchase.Value.Contains("  purchaseCost: 2500"), "MainScene 창고 가격 2500");
         Check(main.Contains("  warehouseExpansionPurchaseZone: {fileID: 473666156}"), "MainScene 창고 패드 연결");
+        Check(Regex.Matches(main, @"^  paymentPerTick: 100\r?$", RegexOptions.Multiline).Count == 8 &&
+            Regex.Matches(main, @"^  paymentInterval: 0\.2\r?$", RegexOptions.Multiline).Count == 8,
+            "MainScene 8개 패드의 결제 단위");
+        Check(Regex.Matches(main, @"^  rewardPerBox: 100\r?$", RegexOptions.Multiline).Count == 2,
+            "MainScene 직접/자동 출고 보상 ₩100");
     }
 }

@@ -16,10 +16,12 @@ public class InputWorkerAI : MonoBehaviour
     [SerializeField] private float pickupDistance = 1.2f;
 
     [Header("Carry Settings")]
+    [SerializeField, Min(0.01f)] private float pickupInterval = 0.3f;
     [SerializeField, Range(1, 3)] private int maxCarryCount = 1;
     private const float CollectionDuration = 1.5f;
     private bool collecting;
     private float collectionDeadline;
+    private float nextPickupAllowedTime;
 
     [Header("References")]
     [SerializeField] private Transform carryPoint;
@@ -251,12 +253,16 @@ public class InputWorkerAI : MonoBehaviour
             currentState = HasBox ? WorkerState.MovingToSorting : WorkerState.SearchingBox;
             return;
         }
+        // Gate only acquisition; movement and collection exit checks still run during cooldown.
+        float now = Time.time;
+        if (HasBox && now < nextPickupAllowedTime) return;
         if (!targetBox.TryPickUp(carryPoint, Vector3.up * (CarryCount * 1.05f)))
         {
             targetBox = null;
             currentState = WorkerState.SearchingBox;
             return;
         }
+        nextPickupAllowedTime = now + Mathf.Max(0.01f, pickupInterval);
         bool firstBox = !HasBox;
         carriedBoxes.Add(targetBox);
         UpdateCarryPositions();
@@ -264,7 +270,7 @@ public class InputWorkerAI : MonoBehaviour
         if (firstBox)
         {
             collecting = true;
-            collectionDeadline = Time.time + CollectionDuration;
+            collectionDeadline = now + CollectionDuration;
         }
         currentState = WorkerState.SearchingBox;
         FinishCollectionIfNeeded();

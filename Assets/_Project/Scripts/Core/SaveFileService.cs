@@ -28,7 +28,7 @@ public sealed class SaveFileService
             {
                 string json = File.ReadAllText(path);
                 // Probe uses sentinel field values instead of gameplay defaults. JsonUtility's
-                // missing-field behavior must not turn an incomplete v2 record into Lv.1.
+                // missing-field behavior must not turn an incomplete upgrade record into Lv.1.
                 SaveShape shape = new SaveShape();
                 JsonUtility.FromJsonOverwrite(json, shape);
                 if (shape.schemaVersion < 1)
@@ -37,7 +37,8 @@ public sealed class SaveFileService
                 // Never replace a future-version save with an older backup.
                 if (data != null && data.schemaVersion > SaveData.CurrentVersion)
                     throw new NotSupportedException("Save version is newer than this game.");
-                if (!shape.HasPurchases || (shape.schemaVersion == 2 && !shape.HasUpgrades))
+                if (!shape.HasPurchases || (shape.schemaVersion >= 2 && !shape.HasUpgrades) ||
+                    (shape.schemaVersion >= 3 && !shape.HasWorkerCarryUpgrade))
                     throw new InvalidDataException("Required save fields are missing.");
                 bool legacy = data != null && data.schemaVersion == 1;
                 data?.Migrate();
@@ -68,9 +69,11 @@ public sealed class SaveFileService
         public UpgradeShape carryUpgrade = new UpgradeShape();
         public UpgradeShape sortingUpgrade = new UpgradeShape();
         public UpgradeShape workerSpeedUpgrade = new UpgradeShape();
+        public UpgradeShape workerCarryUpgrade = new UpgradeShape();
         public bool HasPurchases => currentMoney >= 0 && secondInbound != null &&
             warehouseExpansion != null && inputWorker != null && deliveryWorker != null;
         public bool HasUpgrades => Complete(carryUpgrade) && Complete(sortingUpgrade) && Complete(workerSpeedUpgrade);
+        public bool HasWorkerCarryUpgrade => Complete(workerCarryUpgrade);
         private static bool Complete(UpgradeShape value) => value != null && value.level >= 1 && value.paidAmount >= 0;
     }
 
