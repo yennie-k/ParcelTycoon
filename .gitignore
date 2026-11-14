@@ -73,3 +73,30 @@ crashlytics-build.properties
 # Temporary auto-generated Android Assets
 /[Aa]ssets/[Ss]treamingAssets/aa.meta
 /[Aa]ssets/[Ss]treamingAssets/aa/*
+
+# Local OS / IDE files
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+.idea/
+*.slnx
+
+# Local environment settings and signing credentials
+.env
+.env.*
+!.env.example
+!.env.sample
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.key
+
+# Active game saves and migration archives are local play data
+parceltycoon-save.json
+parceltycoon-save.json.*
+
+# Unity recovery scenes (already tracked files require a separate decision)
+/Assets/_Recovery/
+/Assets/_Recovery.meta
