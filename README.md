@@ -122,6 +122,6 @@ Android 실행을 포트폴리오에서 검증 완료로 소개하려면, 위 �
 
 폰트와 Unity/TMP 리소스의 고지, EmojiOne 확인 상태는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 정리했습니다. 각 외부 리소스에는 해당 라이선스가 별도로 적용됩니다. 이 저장소 전체에 일괄적인 오픈소스 라이선스를 부여한 것은 아닙니다.
 
-**현재 TMP에 포함된 EmojiOne 이미지의 정확한 원본 버전·재배포 조건은 추가 확인이 필요합니다. Public 전환 전 이 항목을 해결해야 합니다.** 사용 흔적이 없다는 이유만으로 파일을 제거하거나 공개 가능하다고 판단하지 않았습니다.
+**현재 작업 트리에서는 사용하지 않는 EmojiOne 리소스와 TMP 기본 Sprite 참조를 제거했습니다. 다만 과거 Git 이력에는 파일이 남아 있으므로 Public 전환 전 이력·재배포 문제를 별도로 해결해야 합니다.** 이력 재작성이나 강제 Push는 수행하지 않았습니다. 제거 검증과 이력 정리 제안은 [EmojiOne 제거 및 이력 계획](Docs/EmojiOneRemovalPlan.md)에 기록했습니다.
 
 정리 대상과 공개 전 확인 사항은 [공개 준비 기록](Docs/PublicationReadiness.md)에 기록했습니다.

@@ -49,20 +49,22 @@ Copyright (c) 2012 Red Hat, Inc., with Reserved Font Name Liberation.
 
 템플릿의 저작권 고지를 함께 보존합니다. 위 Unity Companion License 전문을 참조하세요.
 
-## 5. EmojiOne — 현재 파일에 적용할 정확한 버전·조건 확인 필요
+## 5. EmojiOne — 현재 작업 트리에서 제거, 과거 이력의 조건 확인 필요
 
-### 포함된 파일과 연결 관계
+후속 제거 작업에서 아래 리소스 4개와 각각의 `.meta`를 삭제하고 TMP 기본 Sprite Asset 참조를 해제했습니다. 아래 경로·해시·배포 조건 조사는 **과거 이력에 포함된 파일의 기록**입니다. 현재 작업 트리에서 삭제한 사실만으로 과거 파일의 재배포 문제가 해결되지는 않습니다. [검증 및 이력 정리 제안](Docs/EmojiOneRemovalPlan.md)을 참고하세요.
+
+### 제거 전 파일과 연결 관계
 
 - `Assets/TextMesh Pro/Sprites/EmojiOne.png` — 512×512 아틀라스, 128×128 타일 16개
 - `Assets/TextMesh Pro/Sprites/EmojiOne.json` — 타일 배치 정보
-- [기존 EmojiOne Attribution.txt](<Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt>)
+- `Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt` — 원문은 과거 Git 이력에 보존되어 있음
 - `Assets/TextMesh Pro/Resources/Sprite Assets/EmojiOne.asset`
 
 Artwork provided by EmojiOne: https://www.emojione.com/
 
 PNG SHA-256: `a87b965a701de3dc31d7401e542b1fc946587f912c51d7a26e46ade9f098bd1a`
 
-설치된 TMP Essential Resources의 PNG와 바이트 단위로 일치합니다. `TMP Settings.asset`의 기본 Sprite Asset은 EmojiOne을 참조하므로 **프로젝트에 포함되며 기본 설정에도 연결된 리소스**입니다. 현재 게임 코드·씬에서 `<sprite>` 표시 구문이나 별도 EmojiOne 직접 참조는 발견하지 못했습니다. 이는 화면에 직접 표시된 사용 흔적을 찾지 못했다는 의미이며, 빌드 제외나 재배포 허가를 의미하지 않습니다.
+제거 전 PNG는 설치된 TMP Essential Resources의 PNG와 바이트 단위로 일치했습니다. 기본 Sprite Asset에서 EmojiOne Sprite Asset을 거쳐 PNG로 연결되었으며, 게임 코드·씬에서 `<sprite>` 표시 구문이나 별도 EmojiOne 직접 참조는 발견하지 못했습니다. 현재 기본 Sprite Asset은 None이며, 삭제한 리소스의 GUID 참조는 Unity 에셋에서 발견되지 않았습니다.
 
 ### 공식 버전별 조건과 남은 확인
 
@@ -71,6 +73,8 @@ PNG SHA-256: `a87b965a701de3dc31d7401e542b1fc946587f912c51d7a26e46ade9f098bd1a`
 - 이 버전은 PNG/SVG 및 변형 이미지에 **CC BY 4.0**, 비이미지 코드 등에 MIT를 명시합니다. 구버전(<2.0.0)에는 **CC BY-SA 4.0**을 구분해 안내합니다.
 - 비교용으로 받은 v2.2.7의 해당 개별 PNG 16개는 64×64로, 현재 128×128 타일과 해상도가 다릅니다. 현재 아틀라스의 정확한 원본 버전을 확정하거나 v2.2.7과 픽셀 일치를 입증하지는 못했습니다.
 
-따라서 현재 PNG에 CC BY 4.0 또는 다른 라이선스를 임의 지정하지 않습니다. 현재 JSON도 Unity에서 생성한 아틀라스 배치 파일이므로 upstream 코드의 MIT 라이선스를 이름만 보고 적용하지 않습니다.
+후속 조사에서는 v2.2.7의 공식 128px 원본도 대조했지만 같은 이름의 타일과 일치하지 않았습니다. 공식 EmojiOne Assets 3.1과 이름을 교차 대조하면 16개 중 15개 타일이 보이는 RGBA 픽셀 기준으로 일치했고, 나머지는 물음표 대체 타일입니다. 여러 3.x 버전에 공통 그림이 있어 단일 세부 릴리스로는 확정하지 않았습니다. 3.x의 별도 Free License는 원본 파일을 Git 이력과 함께 공개할 권한을 확정하는 근거로 충분하지 않아, 과거 PNG에 CC BY 4.0 등을 임의 지정하지 않습니다. JSON도 TexturePacker 배치 파일이므로 upstream 코드의 MIT를 이름만 보고 적용하지 않습니다.
 
-**공개 전 남은 조치:** TMP에 포함된 해당 이미지의 원본 버전과 허가 근거를 확인한 뒤 정확한 저작권·라이선스·변경 내역 고지를 완성해야 합니다. 확인이 어려우면 소유자가 기본 Sprite 연결과 사용 범위를 검토한 후 제거 또는 교체를 별도 승인하는 방법이 있습니다. 이번 작업에서는 관련 파일·TMP 설정을 변경하거나 삭제하지 않았습니다.
+공식 3.1 고지: https://github.com/joypixels/emojione-assets/blob/3.1/LICENSE.md
+
+**공개 전 남은 조치:** 과거 이력에 포함된 해당 파일의 재배포 허가를 확인하거나, 별도 승인 후 이력을 정리하고 GitHub 잔존 참조를 확인해야 합니다. 이번 작업에서는 현재 프로젝트 제거만 수행했으며 Git 이력 재작성·commit·push·force push는 수행하지 않았습니다.
